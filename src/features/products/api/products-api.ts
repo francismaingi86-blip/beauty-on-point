@@ -1,0 +1,148 @@
+import { db, type Product } from '@/lib/db'
+import { supabase } from '@/lib/supabase'
+import type { ProductFormValues } from '../types/product-schema'
+
+type SupabaseProductRow = {
+  id: string
+  barcode: string | null
+  sku: string
+  name: string
+  brand: string | null
+  category: string | null
+  subcategory: string | null
+  buying_price: number
+  selling_price: number
+  wholesale_price: number | null
+  minimum_price: number | null
+  stock: number
+  minimum_stock: number
+  maximum_stock: number | null
+  expiry_date: string | null
+  batch_number: string | null
+  supplier_id: string | null
+  image_url: string | null
+  notes: string | null
+  updated_at: string
+}
+
+function toSupabaseRow(product: Product): Omit<SupabaseProductRow, 'updated_at'> {
+  return {
+    id: product.id,
+    barcode: product.barcode ?? null,
+    sku: product.sku,
+    name: product.name,
+    brand: product.brand ?? null,
+    category: product.category ?? null,
+    subcategory: product.subcategory ?? null,
+    buying_price: product.buyingPrice,
+    selling_price: product.sellingPrice,
+    wholesale_price: product.wholesalePrice ?? null,
+    minimum_price: product.minimumPrice ?? null,
+    stock: product.stock,
+    minimum_stock: product.minimumStock,
+    maximum_stock: product.maximumStock ?? null,
+    expiry_date: product.expiryDate ?? null,
+    batch_number: product.batchNumber ?? null,
+    supplier_id: product.supplierId ?? null,
+    image_url: product.imageUrl ?? null,
+    notes: product.notes ?? null,
+  }
+}
+
+function fromSupabaseRow(row: SupabaseProductRow): Product {
+  return {
+    id: row.id,
+    barcode: row.barcode ?? undefined,
+    sku: row.sku,
+    name: row.name,
+    brand: row.brand ?? undefined,
+    category: row.category ?? undefined,
+    subcategory: row.subcategory ?? undefined,
+    buyingPrice: row.buying_price,
+    sellingPrice: row.selling_price,
+    wholesalePrice: row.wholesale_price ?? undefined,
+    minimumPrice: row.minimum_price ?? undefined,
+    stock: row.stock,
+    minimumStock: row.minimum_stock,
+    maximumStock: row.maximum_stock ?? undefined,
+    expiryDate: row.expiry_date ?? undefined,
+    batchNumber: row.batch_number ?? undefined,
+    supplierId: row.supplier_id ?? undefined,
+    imageUrl: row.image_url ?? undefined,
+    notes: row.notes ?? undefined,
+    updatedAt: new Date(row.updated_at).getTime(),
+    synced: true,
+  }
+}
+
+/** All products, newest first. Always reads from the local Dexie cache. */
+export async function listProducts(): Promise<Product[]> {
+  const all = await db.products.toArray()
+  return all.sort((a, b) => b.updatedAt - a.updatedAt)
+}
+
+/** Create or update a product locally, then try to push it to Supabase. */
+export async function saveProduct(
+  values: ProductFormValues,
+  existingId?: string
+): Promise<Product> {
+  const product: Product = {
+    id: existingId ?? crypto.randomUUID(),
+    barcode: values.barcode || undefined,
+    sku: values.sku,
+    name: values.name,
+    brand: values.brand || undefined,
+    category: values.category || undefined,
+    subcategory: values.subcategory || undefined,
+    buyingPrice: values.buyingPrice,
+    sellingPrice: values.sellingPrice,
+    wholesalePrice: values.wholesalePrice,
+    minimumPrice: values.minimumPrice,
+    stock: values.stock,
+    minimumStock: values.minimumStock,
+    maximumStock: values.maximumStock,
+    expiryDate: values.expiryDate || undefined,
+    batchNumber: values.batchNumber || undefined,
+    supplierId: values.supplierId || undefined,
+    imageUrl: values.imageUrl || undefined,
+    notes: values.notes || undefined,
+    updatedAt: Date.now(),
+    synced: false,
+  }
+
+  await db.products.put(product)
+  void pushProduct(product)
+  return product
+}
+
+export async function deleteProduct(id: string): Promise<void> {
+  await db.products.delete(id)
+  if (navigator.onLine) {
+    await supabase.from('products').delete().eq('id', id)
+  }
+}
+
+/** Push a single product to Supabase and mark it synced on success. */
+async function pushProduct(product: Product): Promise<void> {
+  if (!navigator.onLine) return
+  const { error } = await supabase.from('products').upsert(toSupabaseRow(product))
+  if (!error) {
+    await db.products.update(product.id, { synced: true })
+  }
+}
+
+/** Push every unsynced local product — call this on reconnect. */
+export async function syncPendingProducts(): Promise<void> {
+  if (!navigator.onLine) return
+  const pending = await db.products.filter((p) => !p.synced).toArray()
+  await Promise.all(pending.map(pushProduct))
+}
+
+/** Pull the latest products from Supabase into the local cache. */
+export async function refreshProductsFromServer(): Promise<void> {
+  if (!navigator.onLine) return
+  const { data, error } = await supabase.from('products').select('*')
+  if (error || !data) return
+  const mapped = (data as SupabaseProductRow[]).map(fromSupabaseRow)
+  await db.products.bulkPut(mapped)
+}

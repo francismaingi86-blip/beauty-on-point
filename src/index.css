@@ -1,0 +1,116 @@
+@import "tailwindcss";
+
+@theme {
+  /* Brand palette: Pink (primary), Black (secondary), Gold (accent), White (background) */
+  --color-brand-pink-50: #fff0f6;
+  --color-brand-pink-100: #ffdcea;
+  --color-brand-pink-200: #ffb8d6;
+  --color-brand-pink-300: #ff8dbb;
+  --color-brand-pink-400: #fa5a9a;
+  --color-brand-pink-500: #ec2b77;
+  --color-brand-pink-600: #cf1660;
+  --color-brand-pink-700: #a80f4d;
+  --color-brand-pink-800: #7d0d3b;
+  --color-brand-pink-900: #560a29;
+
+  --color-brand-gold-50: #fdf8ec;
+  --color-brand-gold-100: #f9edc9;
+  --color-brand-gold-200: #f2d98d;
+  --color-brand-gold-300: #e9c05a;
+  --color-brand-gold-400: #dba834;
+  --color-brand-gold-500: #c2911f;
+  --color-brand-gold-600: #a17418;
+  --color-brand-gold-700: #7d5817;
+  --color-brand-gold-800: #5f4318;
+  --color-brand-gold-900: #4a3517;
+
+  --color-brand-black-50: #f5f5f6;
+  --color-brand-black-100: #e5e5e7;
+  --color-brand-black-200: #c5c5c9;
+  --color-brand-black-300: #9a9aa1;
+  --color-brand-black-400: #6b6b74;
+  --color-brand-black-500: #46464e;
+  --color-brand-black-600: #2e2e34;
+  --color-brand-black-700: #1f1f24;
+  --color-brand-black-800: #141417;
+  --color-brand-black-900: #0a0a0c;
+
+  --font-display: "Fraunces", "Georgia", serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  --radius-card: 1.25rem;
+  --radius-pill: 999px;
+
+  --shadow-glass: 0 8px 32px 0 rgba(20, 20, 23, 0.08);
+  --shadow-glow-pink: 0 0 24px 0 rgba(236, 43, 119, 0.25);
+}
+
+/* Light mode is default; .dark toggles dark surfaces */
+:root {
+  color-scheme: light;
+  --surface: #ffffff;
+  --surface-muted: #fdf6f9;
+  --border-subtle: rgba(20, 20, 23, 0.08);
+  --text-primary: #141417;
+  --text-muted: #6b6b74;
+}
+
+.dark {
+  color-scheme: dark;
+  --surface: #14121a;
+  --surface-muted: #1c1a24;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --text-primary: #f5f2f4;
+  --text-muted: #a09aa8;
+}
+
+@layer base {
+  * {
+    border-color: var(--border-subtle);
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    background-color: var(--surface-muted);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+  }
+  ::selection {
+    background-color: var(--color-brand-pink-200);
+  }
+}
+
+@layer utilities {
+  .glass {
+    background-color: color-mix(in srgb, var(--surface) 70%, transparent);
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    border: 1px solid var(--border-subtle);
+  }
+  .card-surface {
+    background-color: var(--surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-card);
+  }
+  .focus-ring {
+    outline: none;
+  }
+  .focus-ring:focus-visible {
+    outline: 2px solid var(--color-brand-pink-400);
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
