@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { useReactToPrint } from 'react-to-print'
-import { Search, Minus, Plus, Trash2, PauseCircle, Printer, X } from 'lucide-react'
+import { Search, Minus, Plus, Trash2, PauseCircle, Printer, Bluetooth, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { formatKes } from '@/lib/utils'
@@ -10,6 +10,7 @@ import { useCartStore } from './hooks/useCartStore'
 import { useCompleteSale, useHeldSales, useHoldSale, useDeleteHeldSale } from './hooks/useSales'
 import { useSettings } from '@/features/settings/hooks/useSettings'
 import { Receipt } from './components/Receipt'
+import { buildEscPosReceipt, printViaBluetooth, isBluetoothPrintSupported } from './api/bluetooth-print'
 import type { Sale } from '@/lib/db'
 
 const PAYMENT_METHODS: { value: Sale['paymentMethod']; label: string }[] = [
@@ -33,6 +34,8 @@ export function SalesPage() {
   const [paymentMethod, setPaymentMethod] = useState<Sale['paymentMethod']>('cash')
   const [showHeld, setShowHeld] = useState(false)
   const [completedSale, setCompletedSale] = useState<Sale | null>(null)
+  const [btPrinting, setBtPrinting] = useState(false)
+  const bluetoothSupported = useMemo(() => isBluetoothPrintSupported(), [])
 
   const receiptRef = useRef<HTMLDivElement>(null)
   const printReceipt = useReactToPrint({ contentRef: receiptRef })
@@ -55,7 +58,10 @@ export function SalesPage() {
 
   function handleAdd(product: (typeof products)[number]) {
     if (product.stock <= 0) return
-    addItem({ productId: product.id, name: product.name, unitPrice: product.sellingPrice, stock: product.stock })
+    const added = addItem({ productId: product.id, name: product.name, unitPrice: product.sellingPrice, stock: product.stock })
+    if (!added) {
+      alert(`Only ${product.stock} in stock — you already have that many in the cart.`)
+    }
   }
 
   function handleBarcodeScan(code: string) {
@@ -172,7 +178,16 @@ export function SalesPage() {
                     <Minus size={12} />
                   </Button>
                   <span className="w-5 text-center">{item.quantity}</span>
-                  <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => incrementItem(item.productId, 1)}>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => {
+                      const product = products.find((p) => p.id === item.productId)
+                      const ok = incrementItem(item.productId, 1, product?.stock)
+                      if (!ok) alert(`Only ${product?.stock ?? 0} in stock.`)
+                    }}
+                  >
                     <Plus size={12} />
                   </Button>
                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeItem(item.productId)}>
@@ -282,14 +297,45 @@ export function SalesPage() {
               phone={settings?.phone}
               footer={settings?.receiptFooter}
             />
-            <div className="mt-4 flex gap-2">
-              <Button variant="outline" className="flex-1" onClick={() => setCompletedSale(null)}>
-                Close
-              </Button>
-              <Button className="flex-1" onClick={() => printReceipt()}>
-                <Printer size={15} /> Print
-              </Button>
+            <div className="mt-4 flex flex-col gap-2">
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1" onClick={() => setCompletedSale(null)}>
+                  Close
+                </Button>
+                <Button className="flex-1" onClick={() => printReceipt()}>
+                  <Printer size={15} /> Print
+                </Button>
+              </div>
+              {bluetoothSupported && (
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  disabled={btPrinting}
+                  onClick={async () => {
+                    setBtPrinting(true)
+                    try {
+                      const bytes = buildEscPosReceipt(completedSale, {
+                        name: settings?.businessName ?? 'Beauty on Point',
+                        address: settings?.address,
+                        phone: settings?.phone,
+                        footer: settings?.receiptFooter,
+                      })
+                      await printViaBluetooth(bytes)
+                    } catch (err) {
+                      alert(err instanceof Error ? err.message : 'Bluetooth printing failed.')
+                    } finally {
+                      setBtPrinting(false)
+                    }
+                  }}
+                >
+                  <Bluetooth size={15} /> {btPrinting ? 'Connecting…' : 'Print via Bluetooth'}
+                </Button>
+              )}
             </div>
+            <p className="mt-2 text-center text-xs text-[var(--text-muted)]">
+              Tip: if you use a Bluetooth receipt printer through an app like RawBT, the regular
+              "Print" button above works too, and is often more reliable.
+            </p>
           </div>
         </div>
       )}

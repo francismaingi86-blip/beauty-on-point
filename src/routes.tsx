@@ -2,6 +2,7 @@ import { createBrowserRouter } from 'react-router-dom'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { RequireAuth } from '@/components/layout/RequireAuth'
 import LoginPage from '@/features/auth/LoginPage'
+import ResetPasswordPage from '@/features/auth/ResetPasswordPage'
 import DashboardPage from '@/features/dashboard/DashboardPage'
 import SalesPage from '@/features/sales/SalesPage'
 import ProductsPage from '@/features/products/ProductsPage'
@@ -14,9 +15,11 @@ import CreditNotesPage from '@/features/credit-notes/CreditNotesPage'
 import ReportsPage from '@/features/reports/ReportsPage'
 import AiInsightsPage from '@/features/ai-insights/AiInsightsPage'
 import SettingsPage from '@/features/settings/SettingsPage'
+import StaffPage from '@/features/staff/StaffPage'
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
+  { path: '/reset-password', element: <ResetPasswordPage /> },
   {
     path: '/',
     element: <RequireAuth />,
@@ -37,6 +40,7 @@ export const router = createBrowserRouter([
           { path: 'reports', element: <ReportsPage /> },
           { path: 'ai-insights', element: <AiInsightsPage /> },
           { path: 'settings', element: <SettingsPage /> },
+          { path: 'staff', element: <StaffPage /> },
         ],
       },
     ],

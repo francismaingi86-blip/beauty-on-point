@@ -6,8 +6,10 @@ interface CartState {
   items: SaleItem[]
   discount: number
   customerId?: string
-  addItem: (item: { productId: string; name: string; unitPrice: number; stock: number }) => void
-  incrementItem: (productId: string, delta: number) => void
+  /** Returns false if the item is already at (or above) available stock. */
+  addItem: (item: { productId: string; name: string; unitPrice: number; stock: number }) => boolean
+  /** Returns false if incrementing would exceed maxStock. */
+  incrementItem: (productId: string, delta: number, maxStock?: number) => boolean
   removeItem: (productId: string) => void
   setDiscount: (discount: number) => void
   setCustomerId: (customerId: string | undefined) => void
@@ -24,8 +26,10 @@ export const useCartStore = create<CartState>()(
       addItem: ({ productId, name, unitPrice, stock }) => {
         const items = get().items
         const existing = items.find((i) => i.productId === productId)
+
         if (existing) {
-          const nextQty = Math.min(existing.quantity + 1, Math.max(stock, existing.quantity + 1))
+          if (existing.quantity >= stock) return false
+          const nextQty = existing.quantity + 1
           set({
             items: items.map((i) =>
               i.productId === productId
@@ -33,21 +37,33 @@ export const useCartStore = create<CartState>()(
                 : i
             ),
           })
-        } else {
-          set({ items: [...items, { productId, name, quantity: 1, unitPrice, total: unitPrice }] })
+          return true
         }
+
+        if (stock <= 0) return false
+        set({ items: [...items, { productId, name, quantity: 1, unitPrice, total: unitPrice }] })
+        return true
       },
 
-      incrementItem: (productId, delta) => {
+      incrementItem: (productId, delta, maxStock) => {
+        const items = get().items
+        const existing = items.find((i) => i.productId === productId)
+        if (!existing) return false
+
+        const proposedQty = existing.quantity + delta
+        if (delta > 0 && maxStock !== undefined && proposedQty > maxStock) {
+          return false
+        }
+
+        const nextQty = Math.max(1, proposedQty)
         set({
-          items: get()
-            .items.map((i) =>
-              i.productId === productId
-                ? { ...i, quantity: Math.max(1, i.quantity + delta), total: Math.max(1, i.quantity + delta) * i.unitPrice }
-                : i
-            )
-            .filter((i) => i.quantity > 0),
+          items: items.map((i) =>
+            i.productId === productId
+              ? { ...i, quantity: nextQty, total: nextQty * i.unitPrice }
+              : i
+          ),
         })
+        return true
       },
 
       removeItem: (productId) => {

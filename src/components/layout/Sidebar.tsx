@@ -12,6 +12,7 @@ import {
   BarChart3,
   Sparkles,
   Settings,
+  UsersRound,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -34,6 +35,7 @@ const NAV_ITEMS = [
   { to: '/reports', label: 'Reports', icon: BarChart3 },
   { to: '/ai-insights', label: 'AI Insights', icon: Sparkles },
   { to: '/settings', label: 'Settings', icon: Settings },
+  { to: '/staff', label: 'Staff', icon: UsersRound },
 ]
 
 export function Sidebar() {

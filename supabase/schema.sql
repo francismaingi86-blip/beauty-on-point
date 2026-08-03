@@ -167,3 +167,67 @@ create policy "Authenticated staff can read settings"
 create policy "Authenticated staff can update settings"
   on app_settings for update to authenticated using (true);
 
+-- Staff accounts and roles.
+-- New logins are created via the `create-staff` edge function (which uses
+-- the service role key), and that function also inserts the matching row
+-- here. The very first user ever created bootstraps themselves as
+-- administrator the first time they open the app.
+create table if not exists staff (
+  id uuid primary key references auth.users(id) on delete cascade,
+  name text not null,
+  email text not null,
+  role text not null default 'cashier'
+    check (role in ('administrator', 'manager', 'cashier', 'storekeeper')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+drop trigger if exists staff_set_updated_at on staff;
+create trigger staff_set_updated_at
+  before update on staff
+  for each row execute function set_updated_at();
+
+alter table staff enable row level security;
+
+-- security definer so it can check the staff table without recursing into
+-- the RLS policies that themselves call this function.
+create or replace function is_admin()
+returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from staff where id = auth.uid() and role = 'administrator'
+  );
+$$;
+
+create policy "Users can view own staff row, admins view all"
+  on staff for select
+  to authenticated
+  using (id = auth.uid() or is_admin());
+
+create policy "First user bootstraps as administrator"
+  on staff for insert
+  to authenticated
+  with check (
+    id = auth.uid()
+    and role = 'administrator'
+    and (select count(*) from staff) = 0
+  );
+
+create policy "Admins can add staff"
+  on staff for insert
+  to authenticated
+  with check (is_admin());
+
+create policy "Admins can update staff"
+  on staff for update
+  to authenticated
+  using (is_admin());
+
+create policy "Admins can remove staff"
+  on staff for delete
+  to authenticated
+  using (is_admin());
+
