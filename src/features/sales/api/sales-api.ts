@@ -1,9 +1,12 @@
 import { db, type Sale, type SaleItem } from '@/lib/db'
 import { supabase } from '@/lib/supabase'
+import { useAuthStore } from '@/stores/useAuthStore'
 
 type SupabaseSaleRow = {
   id: string
   customer_id: string | null
+  staff_id: string | null
+  staff_name: string | null
   items: SaleItem[]
   subtotal: number
   discount: number
@@ -18,6 +21,8 @@ function toSupabaseRow(sale: Sale): Omit<SupabaseSaleRow, 'updated_at'> {
   return {
     id: sale.id,
     customer_id: sale.customerId ?? null,
+    staff_id: sale.staffId ?? null,
+    staff_name: sale.staffName ?? null,
     items: sale.items,
     subtotal: sale.subtotal,
     discount: sale.discount,
@@ -43,10 +48,13 @@ interface CompleteSaleInput {
 export async function completeSale(input: CompleteSaleInput): Promise<Sale> {
   const subtotal = input.items.reduce((sum, i) => sum + i.total, 0)
   const total = Math.max(subtotal - input.discount, 0)
+  const currentUser = useAuthStore.getState().user
 
   const sale: Sale = {
     id: crypto.randomUUID(),
     customerId: input.customerId,
+    staffId: currentUser?.id,
+    staffName: currentUser?.name,
     items: input.items,
     subtotal,
     discount: input.discount,
@@ -115,9 +123,12 @@ interface HoldSaleInput {
 /** Saves the current cart as a held sale (no stock deducted yet). */
 export async function holdSale(input: HoldSaleInput): Promise<Sale> {
   const subtotal = input.items.reduce((sum, i) => sum + i.total, 0)
+  const currentUser = useAuthStore.getState().user
   const sale: Sale = {
     id: crypto.randomUUID(),
     customerId: input.customerId,
+    staffId: currentUser?.id,
+    staffName: currentUser?.name,
     items: input.items,
     subtotal,
     discount: input.discount,
@@ -141,4 +152,34 @@ export async function syncPendingSales(): Promise<void> {
   if (!navigator.onLine) return
   const pending = await db.sales.filter((s) => !s.synced).toArray()
   await Promise.all(pending.map(pushSaleAndStock))
+}
+
+function fromSupabaseRow(row: SupabaseSaleRow): Sale {
+  return {
+    id: row.id,
+    customerId: row.customer_id ?? undefined,
+    staffId: row.staff_id ?? undefined,
+    staffName: row.staff_name ?? undefined,
+    items: row.items,
+    subtotal: row.subtotal,
+    discount: row.discount,
+    total: row.total,
+    paymentMethod: row.payment_method as Sale['paymentMethod'],
+    status: row.status as Sale['status'],
+    createdAt: new Date(row.created_at).getTime(),
+    updatedAt: new Date(row.updated_at).getTime(),
+    synced: true,
+  }
+}
+
+/**
+ * Pulls completed sales from Supabase into the local cache — RLS on the
+ * server ensures a cashier only ever receives their own sales here, while
+ * admins/managers receive everyone's.
+ */
+export async function refreshSalesFromServer(): Promise<void> {
+  if (!navigator.onLine) return
+  const { data, error } = await supabase.from('sales').select('*').eq('status', 'completed')
+  if (error || !data) return
+  await db.sales.bulkPut((data as SupabaseSaleRow[]).map(fromSupabaseRow))
 }

@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { Plus, ShieldAlert, Trash2 } from 'lucide-react'
+import { Plus, ShieldAlert, Trash2, Pencil, Check, X } from 'lucide-react'
 import { Card, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
 import { useAuthStore } from '@/stores/useAuthStore'
-import { useStaff, useUpdateStaffRole, useRemoveStaff } from './hooks/useStaff'
+import { useStaff, useUpdateStaffRole, useUpdateStaffName, useRemoveStaff } from './hooks/useStaff'
 import { AddStaffForm } from './components/AddStaffForm'
 import type { StaffRole } from '@/stores/useAuthStore'
 
@@ -23,8 +23,11 @@ export function StaffPage() {
   const isAdmin = currentUser?.role === 'administrator'
   const { data: staff = [], isLoading } = useStaff()
   const updateRole = useUpdateStaffRole()
+  const updateName = useUpdateStaffName()
   const removeStaff = useRemoveStaff()
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [editingNameId, setEditingNameId] = useState<string | null>(null)
+  const [nameDraft, setNameDraft] = useState('')
 
   if (!isAdmin) {
     return (
@@ -51,6 +54,17 @@ export function StaffPage() {
     }
   }
 
+  function startEditingName(id: string, currentName: string) {
+    setEditingNameId(id)
+    setNameDraft(currentName)
+  }
+
+  function saveName(id: string) {
+    const trimmed = nameDraft.trim()
+    if (trimmed) updateName.mutate({ id, name: trimmed })
+    setEditingNameId(null)
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
@@ -74,10 +88,37 @@ export function StaffPage() {
           <div className="divide-y divide-[var(--border-subtle)]">
             {staff.map((member) => (
               <div key={member.id} className="flex items-center justify-between gap-3 py-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">
-                    {member.name} {member.id === currentUser?.id && <span className="text-[var(--text-muted)]">(you)</span>}
-                  </p>
+                <div className="min-w-0 flex-1">
+                  {editingNameId === member.id ? (
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        autoFocus
+                        value={nameDraft}
+                        onChange={(e) => setNameDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') saveName(member.id)
+                          if (e.key === 'Escape') setEditingNameId(null)
+                        }}
+                        className="focus-ring w-full max-w-[160px] rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-2 py-1 text-sm"
+                      />
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => saveName(member.id)}>
+                        <Check size={14} className="text-emerald-600" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingNameId(null)}>
+                        <X size={14} />
+                      </Button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => startEditingName(member.id, member.name)}
+                      className="focus-ring group flex items-center gap-1.5 text-left"
+                    >
+                      <p className="truncate text-sm font-medium">
+                        {member.name} {member.id === currentUser?.id && <span className="text-[var(--text-muted)]">(you)</span>}
+                      </p>
+                      <Pencil size={11} className="shrink-0 text-[var(--text-muted)] opacity-0 group-hover:opacity-100" />
+                    </button>
+                  )}
                   <p className="truncate text-xs text-[var(--text-muted)]">{member.email}</p>
                 </div>
 

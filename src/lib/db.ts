@@ -58,6 +58,8 @@ export interface Supplier {
 export interface Sale {
   id: string
   customerId?: string
+  staffId?: string
+  staffName?: string
   items: SaleItem[]
   subtotal: number
   discount: number
@@ -74,6 +76,7 @@ export interface SaleItem {
   name: string
   quantity: number
   unitPrice: number
+  unitCost: number
   total: number
 }
 
@@ -88,12 +91,105 @@ export interface Expense {
   synced: boolean
 }
 
+export interface PurchaseItem {
+  productId: string
+  name: string
+  quantity: number
+  unitCost: number
+  total: number
+}
+
+export interface Purchase {
+  id: string
+  supplierId?: string
+  supplierName?: string
+  items: PurchaseItem[]
+  total: number
+  status: 'draft' | 'ordered' | 'received' | 'cancelled'
+  notes?: string
+  orderedAt?: number
+  receivedAt?: number
+  createdAt: number
+  updatedAt: number
+  synced: boolean
+}
+
+export interface StockTakeItem {
+  productId: string
+  name: string
+  systemStock: number
+  countedStock: number
+  variance: number
+}
+
+export interface StockTake {
+  id: string
+  items: StockTakeItem[]
+  status: 'draft' | 'completed'
+  notes?: string
+  staffId?: string
+  staffName?: string
+  createdAt: number
+  updatedAt: number
+  synced: boolean
+}
+
+export interface CreditNoteItem {
+  productId: string
+  name: string
+  quantity: number
+  unitPrice: number
+  total: number
+}
+
+export interface CreditNote {
+  id: string
+  customerId?: string
+  customerName?: string
+  saleId?: string
+  items: CreditNoteItem[]
+  total: number
+  reason?: string
+  staffId?: string
+  staffName?: string
+  createdAt: number
+  updatedAt: number
+  synced: boolean
+}
+
+export interface PurchaseReturnItem {
+  productId: string
+  name: string
+  quantity: number
+  unitCost: number
+  total: number
+}
+
+export interface PurchaseReturn {
+  id: string
+  supplierId?: string
+  supplierName?: string
+  purchaseId?: string
+  items: PurchaseReturnItem[]
+  total: number
+  reason?: string
+  staffId?: string
+  staffName?: string
+  createdAt: number
+  updatedAt: number
+  synced: boolean
+}
+
 class AppDatabase extends Dexie {
   products!: Table<Product, string>
   customers!: Table<Customer, string>
   suppliers!: Table<Supplier, string>
   sales!: Table<Sale, string>
   expenses!: Table<Expense, string>
+  purchases!: Table<Purchase, string>
+  stockTakes!: Table<StockTake, string>
+  creditNotes!: Table<CreditNote, string>
+  purchaseReturns!: Table<PurchaseReturn, string>
 
   constructor() {
     super('beauty-on-point-db')
@@ -103,6 +199,34 @@ class AppDatabase extends Dexie {
       suppliers: 'id, name, synced, updatedAt',
       sales: 'id, customerId, status, createdAt, synced, updatedAt',
       expenses: 'id, category, incurredAt, synced, updatedAt',
+    })
+    this.version(2).stores({
+      products: 'id, barcode, sku, name, category, synced, updatedAt',
+      customers: 'id, name, phone, synced, updatedAt',
+      suppliers: 'id, name, synced, updatedAt',
+      sales: 'id, customerId, status, createdAt, synced, updatedAt',
+      expenses: 'id, category, incurredAt, synced, updatedAt',
+      purchases: 'id, supplierId, status, createdAt, synced, updatedAt',
+    })
+    this.version(3).stores({
+      products: 'id, barcode, sku, name, category, synced, updatedAt',
+      customers: 'id, name, phone, synced, updatedAt',
+      suppliers: 'id, name, synced, updatedAt',
+      sales: 'id, customerId, status, createdAt, synced, updatedAt',
+      expenses: 'id, category, incurredAt, synced, updatedAt',
+      purchases: 'id, supplierId, status, createdAt, synced, updatedAt',
+      stockTakes: 'id, status, createdAt, synced, updatedAt',
+    })
+    this.version(4).stores({
+      products: 'id, barcode, sku, name, category, synced, updatedAt',
+      customers: 'id, name, phone, synced, updatedAt',
+      suppliers: 'id, name, synced, updatedAt',
+      sales: 'id, customerId, status, createdAt, synced, updatedAt',
+      expenses: 'id, category, incurredAt, synced, updatedAt',
+      purchases: 'id, supplierId, status, createdAt, synced, updatedAt',
+      stockTakes: 'id, status, createdAt, synced, updatedAt',
+      creditNotes: 'id, customerId, createdAt, synced, updatedAt',
+      purchaseReturns: 'id, supplierId, purchaseId, createdAt, synced, updatedAt',
     })
   }
 }

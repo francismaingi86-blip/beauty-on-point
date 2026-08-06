@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import {
   AreaChart,
   Area,
@@ -12,6 +13,19 @@ import {
 import { Card, CardHeader, CardTitle, CardValue } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { formatKes } from '@/lib/utils'
+import { useAuthStore } from '@/stores/useAuthStore'
+import { useSales } from '@/features/sales/hooks/useSales'
+import { useProducts } from '@/features/products/hooks/useProducts'
+import { useExpenses } from '@/features/expenses/hooks/useExpenses'
+import { useCustomers } from '@/features/customers/hooks/useCustomers'
+import {
+  computeDashboardStats,
+  revenueSeriesLast7Days,
+  computeStockAlerts,
+  computeBusinessHealthScore,
+  computeFastMovers,
+  computeRecommendations,
+} from '@/features/ai-insights/lib/analytics'
 import {
   TrendingUp,
   Wallet,
@@ -23,43 +37,94 @@ import {
   Sparkles,
 } from 'lucide-react'
 
-// Placeholder series — wire to Supabase queries once sales data exists.
-const revenueSeries = [
-  { day: 'Mon', revenue: 12000, profit: 4200 },
-  { day: 'Tue', revenue: 15800, profit: 5600 },
-  { day: 'Wed', revenue: 9800, profit: 3100 },
-  { day: 'Thu', revenue: 17200, profit: 6200 },
-  { day: 'Fri', revenue: 21200, profit: 8100 },
-  { day: 'Sat', revenue: 26400, profit: 9800 },
-  { day: 'Sun', revenue: 14100, profit: 4900 },
-]
-
-const topProducts = [
-  { name: 'Matte Lip Kit', units: 42 },
-  { name: 'Hydra Glow Serum', units: 35 },
-  { name: 'Rose Nude Palette', units: 28 },
-  { name: 'Silk Foundation', units: 24 },
-]
-
-const STAT_CARDS = [
-  { label: "Today's Sales", value: formatKes(26400), icon: TrendingUp },
-  { label: "Today's Profit", value: formatKes(9800), icon: Wallet },
-  { label: "Today's Expenses", value: formatKes(3200), icon: Receipt },
-  { label: 'Cash in Hand', value: formatKes(18450), icon: ShoppingBag },
-]
-
-const HEALTH_SCORE = 82
-
 export function DashboardPage() {
+  const user = useAuthStore((s) => s.user)
+  const firstName = user?.name?.split(' ')[0] ?? 'there'
+  const isCashierOrStorekeeper = user?.role === 'cashier' || user?.role === 'storekeeper'
+  const { data: sales = [] } = useSales()
+  const { data: products = [] } = useProducts()
+  const { data: expenses = [] } = useExpenses()
+  const { data: customers = [] } = useCustomers()
+
+  if (isCashierOrStorekeeper) {
+    const today = sales.filter(
+      (s) => s.status === 'completed' && new Date(s.createdAt).toDateString() === new Date().toDateString()
+    )
+    const todayTotal = today.reduce((sum, s) => sum + s.total, 0)
+
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="font-display text-2xl font-semibold">Welcome, {firstName}</h1>
+          <p className="text-sm text-[var(--text-muted)]">Here's your activity today.</p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Your sales today</CardTitle>
+              <ShoppingBag size={16} className="text-brand-pink-400" />
+            </CardHeader>
+            <CardValue>{formatKes(todayTotal)}</CardValue>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Transactions today</CardTitle>
+              <Receipt size={16} className="text-brand-pink-400" />
+            </CardHeader>
+            <CardValue>{today.length}</CardValue>
+          </Card>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent sales</CardTitle>
+          </CardHeader>
+          {today.length === 0 ? (
+            <p className="text-sm text-[var(--text-muted)]">No sales yet today — head to Sales to ring one up.</p>
+          ) : (
+            <div className="divide-y divide-[var(--border-subtle)]">
+              {today.slice(0, 10).map((sale) => (
+                <div key={sale.id} className="flex items-center justify-between py-2.5 text-sm">
+                  <div>
+                    <p className="font-medium">{sale.items.length} item{sale.items.length === 1 ? '' : 's'}</p>
+                    <p className="text-xs text-[var(--text-muted)]">
+                      {new Date(sale.createdAt).toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                  <p className="font-semibold">{formatKes(sale.total)}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      </div>
+    )
+  }
+
+  const stats = computeDashboardStats(sales, expenses)
+  const revenueSeries = revenueSeriesLast7Days(sales)
+  const { outOfStock, lowStock, expiringSoon } = computeStockAlerts(products)
+  const healthScore = computeBusinessHealthScore(products, sales, expenses)
+  const fastMovers = computeFastMovers(products, sales, 5)
+  const recommendations = computeRecommendations(products, sales, expenses, customers).slice(0, 3)
+
+  const STAT_CARDS = [
+    { label: "Today's Sales", value: formatKes(stats.today.revenue), icon: TrendingUp },
+    { label: "Today's Profit", value: formatKes(stats.today.profit), icon: Wallet },
+    { label: "Today's Expenses", value: formatKes(stats.todayExpenses), icon: Receipt },
+    { label: 'Cash in Hand (est.)', value: formatKes(stats.cashInHand), icon: ShoppingBag },
+  ]
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div>
-          <h1 className="font-display text-2xl font-semibold">Good morning, Francis</h1>
+          <h1 className="font-display text-2xl font-semibold">Good morning, {firstName}</h1>
           <p className="text-sm text-[var(--text-muted)]">Here's how Beauty on Point is doing today.</p>
         </div>
         <Badge variant="gold" className="w-fit">
-          Business Health: {HEALTH_SCORE}/100
+          Business Health: {healthScore}/100
         </Badge>
       </div>
 
@@ -102,17 +167,25 @@ export function DashboardPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Top Products</CardTitle>
+            <CardTitle>Top Products (30 days)</CardTitle>
           </CardHeader>
           <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={topProducts} layout="vertical" margin={{ left: 8 }}>
-                <XAxis type="number" hide />
-                <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 11 }} stroke="var(--text-muted)" />
-                <Tooltip />
-                <Bar dataKey="units" fill="#fa5a9a" radius={[0, 8, 8, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {fastMovers.length === 0 ? (
+              <p className="pt-8 text-center text-sm text-[var(--text-muted)]">No sales recorded yet.</p>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={fastMovers.map((v) => ({ name: v.product.name, units: v.unitsSold }))}
+                  layout="vertical"
+                  margin={{ left: 8 }}
+                >
+                  <XAxis type="number" hide />
+                  <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 11 }} stroke="var(--text-muted)" />
+                  <Tooltip />
+                  <Bar dataKey="units" fill="#fa5a9a" radius={[0, 8, 8, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </Card>
       </div>
@@ -121,21 +194,21 @@ export function DashboardPage() {
         <Card className="flex items-start gap-3">
           <PackageX size={18} className="mt-0.5 shrink-0 text-red-500" />
           <div>
-            <p className="text-sm font-semibold">2 products out of stock</p>
+            <p className="text-sm font-semibold">{outOfStock.length} products out of stock</p>
             <p className="text-sm text-[var(--text-muted)]">Restock to avoid missed sales.</p>
           </div>
         </Card>
         <Card className="flex items-start gap-3">
           <AlertTriangle size={18} className="mt-0.5 shrink-0 text-brand-gold-500" />
           <div>
-            <p className="text-sm font-semibold">5 products low on stock</p>
+            <p className="text-sm font-semibold">{lowStock.length} products low on stock</p>
             <p className="text-sm text-[var(--text-muted)]">Below their minimum stock level.</p>
           </div>
         </Card>
         <Card className="flex items-start gap-3">
           <CalendarClock size={18} className="mt-0.5 shrink-0 text-brand-gold-500" />
           <div>
-            <p className="text-sm font-semibold">3 products expiring soon</p>
+            <p className="text-sm font-semibold">{expiringSoon.length} products expiring soon</p>
             <p className="text-sm text-[var(--text-muted)]">Within the next 30 days.</p>
           </div>
         </Card>
@@ -147,11 +220,16 @@ export function DashboardPage() {
             <Sparkles size={14} className="text-brand-gold-500" /> AI Recommendations
           </CardTitle>
         </CardHeader>
-        <p className="text-sm text-[var(--text-muted)]">
-          Connect Supabase and record a few days of sales, and AI Insights will
-          generate real restock suggestions, slow-mover alerts, and profit tips
-          here — grounded only in your actual data.
-        </p>
+        <div className="space-y-2">
+          {recommendations.map((rec, i) => (
+            <p key={i} className="text-sm text-[var(--text-muted)]">
+              {rec.message}
+            </p>
+          ))}
+        </div>
+        <Link to="/ai-insights" className="mt-3 inline-block text-sm font-medium text-brand-pink-600">
+          See full insights →
+        </Link>
       </Card>
     </div>
   )

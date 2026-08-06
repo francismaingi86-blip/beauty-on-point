@@ -4,6 +4,7 @@ import {
   completeSale,
   listSales,
   syncPendingSales,
+  refreshSalesFromServer,
   holdSale,
   listHeldSales,
   deleteHeldSale,
@@ -16,14 +17,17 @@ export function useSales() {
   const queryClient = useQueryClient()
 
   useEffect(() => {
-    const onOnline = async () => {
+    const refresh = async () => {
       await syncPendingSales()
+      await refreshSalesFromServer()
       queryClient.invalidateQueries({ queryKey: SALES_KEY })
       queryClient.invalidateQueries({ queryKey: ['products'] })
     }
-    window.addEventListener('online', onOnline)
-    return () => window.removeEventListener('online', onOnline)
-  }, [queryClient])
+    refresh()
+    window.addEventListener('online', refresh)
+    return () => window.removeEventListener('online', refresh)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return useQuery({ queryKey: SALES_KEY, queryFn: listSales })
 }

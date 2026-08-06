@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { listStaff, createStaff, updateStaffRole, removeStaff, type CreateStaffInput } from '../api/staff-api'
+import { listStaff, createStaff, updateStaffRole, updateStaffName, removeStaff, type CreateStaffInput } from '../api/staff-api'
 import type { StaffRole } from '@/stores/useAuthStore'
 
 const STAFF_KEY = ['staff'] as const
@@ -20,6 +20,14 @@ export function useUpdateStaffRole() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ id, role }: { id: string; role: StaffRole }) => updateStaffRole(id, role),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: STAFF_KEY }),
+  })
+}
+
+export function useUpdateStaffName() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) => updateStaffName(id, name),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: STAFF_KEY }),
   })
 }

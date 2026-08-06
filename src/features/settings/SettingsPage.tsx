@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { ImagePlus, Loader2, X } from 'lucide-react'
 import { Card, CardHeader, CardTitle } from '@/components/ui/card'
 import { Field, Input, Textarea } from '@/components/ui/field'
 import { Button } from '@/components/ui/button'
 import { useSettings, useSaveSettings } from './hooks/useSettings'
+import { validateLogoFile, uploadLogo } from './api/upload-logo'
 import type { AppSettings } from './api/settings-api'
 
 export function SettingsPage() {
@@ -10,6 +12,9 @@ export function SettingsPage() {
   const saveSettings = useSaveSettings()
   const [form, setForm] = useState<AppSettings | null>(null)
   const [saved, setSaved] = useState(false)
+  const [logoUploading, setLogoUploading] = useState(false)
+  const [logoError, setLogoError] = useState<string | null>(null)
+  const logoInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (data) setForm(data)
@@ -18,6 +23,29 @@ export function SettingsPage() {
   function update<K extends keyof AppSettings>(key: K, value: AppSettings[K]) {
     setForm((f) => (f ? { ...f, [key]: value } : f))
     setSaved(false)
+  }
+
+  async function handleLogoFile(file: File | undefined) {
+    if (!file) return
+    const validationError = validateLogoFile(file)
+    if (validationError) {
+      setLogoError(validationError)
+      return
+    }
+    if (!navigator.onLine) {
+      setLogoError("You're offline — connect to the internet to upload a logo.")
+      return
+    }
+    setLogoError(null)
+    setLogoUploading(true)
+    try {
+      const url = await uploadLogo(file)
+      update('logoUrl', url)
+    } catch {
+      setLogoError('Upload failed. Check your connection and try again.')
+    } finally {
+      setLogoUploading(false)
+    }
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -43,6 +71,45 @@ export function SettingsPage() {
             <CardTitle>Business information</CardTitle>
           </CardHeader>
           <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
+            <div className="col-span-2">
+              <span className="mb-1 block text-sm font-medium">Company logo</span>
+              <div className="flex items-center gap-3">
+                <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-brand-black-50 dark:bg-white/5">
+                  {logoUploading ? (
+                    <Loader2 size={20} className="animate-spin text-brand-pink-400" />
+                  ) : form.logoUrl ? (
+                    <img src={form.logoUrl} alt="Company logo" className="h-full w-full object-contain" />
+                  ) : (
+                    <ImagePlus size={20} className="text-[var(--text-muted)]" />
+                  )}
+                </div>
+                <div className="flex flex-col gap-2">
+                  <input
+                    ref={logoInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handleLogoFile(e.target.files?.[0])}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => logoInputRef.current?.click()}
+                    disabled={logoUploading}
+                  >
+                    {form.logoUrl ? 'Replace logo' : 'Upload logo'}
+                  </Button>
+                  {form.logoUrl && (
+                    <Button type="button" variant="ghost" size="sm" onClick={() => update('logoUrl', undefined)}>
+                      <X size={14} /> Remove
+                    </Button>
+                  )}
+                </div>
+              </div>
+              {logoError && <p className="mt-1 text-xs text-red-600">{logoError}</p>}
+            </div>
+
             <Field label="Business name" required className="col-span-2">
               <Input value={form.businessName} onChange={(e) => update('businessName', e.target.value)} required />
             </Field>

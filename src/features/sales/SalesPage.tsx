@@ -58,7 +58,13 @@ export function SalesPage() {
 
   function handleAdd(product: (typeof products)[number]) {
     if (product.stock <= 0) return
-    const added = addItem({ productId: product.id, name: product.name, unitPrice: product.sellingPrice, stock: product.stock })
+    const added = addItem({
+      productId: product.id,
+      name: product.name,
+      unitPrice: product.sellingPrice,
+      unitCost: product.buyingPrice,
+      stock: product.stock,
+    })
     if (!added) {
       alert(`Only ${product.stock} in stock — you already have that many in the cart.`)
     }
@@ -82,7 +88,7 @@ export function SalesPage() {
   function handleResume(sale: Sale) {
     clear()
     for (const item of sale.items) {
-      addItem({ productId: item.productId, name: item.name, unitPrice: item.unitPrice, stock: item.quantity })
+      addItem({ productId: item.productId, name: item.name, unitPrice: item.unitPrice, unitCost: item.unitCost, stock: item.quantity })
       // bump quantity up to the held amount
       if (item.quantity > 1) {
         useCartStore.getState().incrementItem(item.productId, item.quantity - 1)

@@ -43,6 +43,11 @@ export async function updateStaffRole(id: string, role: StaffRole): Promise<void
   if (error) throw error
 }
 
+export async function updateStaffName(id: string, name: string): Promise<void> {
+  const { error } = await supabase.from('staff').update({ name }).eq('id', id)
+  if (error) throw error
+}
+
 export async function removeStaff(id: string): Promise<void> {
   const { error } = await supabase.from('staff').delete().eq('id', id)
   if (error) throw error

@@ -231,3 +231,222 @@ create policy "Admins can remove staff"
   to authenticated
   using (is_admin());
 
+-- Customers
+create table if not exists customers (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  phone text,
+  email text,
+  address text,
+  credit_limit numeric(12, 2) not null default 0,
+  current_balance numeric(12, 2) not null default 0,
+  loyalty_points integer not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+drop trigger if exists customers_set_updated_at on customers;
+create trigger customers_set_updated_at
+  before update on customers
+  for each row execute function set_updated_at();
+
+alter table customers enable row level security;
+
+create policy "Authenticated staff can read customers"
+  on customers for select to authenticated using (true);
+create policy "Authenticated staff can write customers"
+  on customers for insert to authenticated with check (true);
+create policy "Authenticated staff can update customers"
+  on customers for update to authenticated using (true);
+create policy "Authenticated staff can delete customers"
+  on customers for delete to authenticated using (true);
+
+-- Expenses
+create table if not exists expenses (
+  id uuid primary key default gen_random_uuid(),
+  category text not null,
+  amount numeric(12, 2) not null default 0,
+  note text,
+  receipt_url text,
+  incurred_at date not null default current_date,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+drop trigger if exists expenses_set_updated_at on expenses;
+create trigger expenses_set_updated_at
+  before update on expenses
+  for each row execute function set_updated_at();
+
+alter table expenses enable row level security;
+
+create policy "Authenticated staff can read expenses"
+  on expenses for select to authenticated using (true);
+create policy "Authenticated staff can write expenses"
+  on expenses for insert to authenticated with check (true);
+create policy "Authenticated staff can update expenses"
+  on expenses for update to authenticated using (true);
+create policy "Authenticated staff can delete expenses"
+  on expenses for delete to authenticated using (true);
+
+-- Purchases (purchase orders from suppliers)
+create table if not exists purchases (
+  id uuid primary key default gen_random_uuid(),
+  supplier_id uuid references suppliers(id) on delete set null,
+  items jsonb not null default '[]',
+  total numeric(12, 2) not null default 0,
+  status text not null default 'draft' check (status in ('draft', 'ordered', 'received', 'cancelled')),
+  notes text,
+  ordered_at timestamptz,
+  received_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+drop trigger if exists purchases_set_updated_at on purchases;
+create trigger purchases_set_updated_at
+  before update on purchases
+  for each row execute function set_updated_at();
+
+alter table purchases enable row level security;
+
+create policy "Authenticated staff can read purchases"
+  on purchases for select to authenticated using (true);
+create policy "Authenticated staff can write purchases"
+  on purchases for insert to authenticated with check (true);
+create policy "Authenticated staff can update purchases"
+  on purchases for update to authenticated using (true);
+create policy "Authenticated staff can delete purchases"
+  on purchases for delete to authenticated using (true);
+
+-- Company assets (logo) bucket.
+insert into storage.buckets (id, name, public)
+values ('company-assets', 'company-assets', true)
+on conflict (id) do nothing;
+
+create policy "Public can view company assets"
+  on storage.objects for select
+  using (bucket_id = 'company-assets');
+
+create policy "Authenticated staff can upload company assets"
+  on storage.objects for insert
+  to authenticated
+  with check (bucket_id = 'company-assets');
+
+create policy "Authenticated staff can update company assets"
+  on storage.objects for update
+  to authenticated
+  using (bucket_id = 'company-assets');
+
+-- Track who made each sale, so reports can be scoped per-cashier.
+alter table sales add column if not exists staff_id uuid references auth.users(id) on delete set null;
+alter table sales add column if not exists staff_name text;
+
+-- Everyone's current role, for use in policies (separate from is_admin()
+-- so managers can be granted report access too, without being full admins).
+create or replace function current_staff_role()
+returns text
+language sql
+security definer
+set search_path = public
+as $$
+  select role from staff where id = auth.uid();
+$$;
+
+-- Replace the old "any authenticated staff can read all sales" policy with
+-- one that limits cashiers (and storekeepers) to their own sales only.
+-- Administrators and managers continue to see everything, including profit
+-- figures computed from the full sales history.
+drop policy if exists "Authenticated staff can read sales" on sales;
+
+create policy "Sales visibility by role"
+  on sales for select
+  to authenticated
+  using (
+    current_staff_role() in ('administrator', 'manager')
+    or staff_id = auth.uid()
+  );
+
+-- Stock takes: physical counts compared against system stock, with the
+-- resulting variance recorded for audit purposes.
+create table if not exists stock_takes (
+  id uuid primary key default gen_random_uuid(),
+  items jsonb not null default '[]',
+  status text not null default 'completed' check (status in ('draft', 'completed')),
+  notes text,
+  staff_id uuid references auth.users(id) on delete set null,
+  staff_name text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+drop trigger if exists stock_takes_set_updated_at on stock_takes;
+create trigger stock_takes_set_updated_at
+  before update on stock_takes
+  for each row execute function set_updated_at();
+
+alter table stock_takes enable row level security;
+
+create policy "Authenticated staff can read stock takes"
+  on stock_takes for select to authenticated using (true);
+create policy "Authenticated staff can write stock takes"
+  on stock_takes for insert to authenticated with check (true);
+create policy "Authenticated staff can update stock takes"
+  on stock_takes for update to authenticated using (true);
+
+-- Credit notes: customer returns/refunds. Recorded items go back into
+-- stock, and if the customer paid on credit, their balance is reduced.
+create table if not exists credit_notes (
+  id uuid primary key default gen_random_uuid(),
+  customer_id uuid references customers(id) on delete set null,
+  customer_name text,
+  sale_id uuid references sales(id) on delete set null,
+  items jsonb not null default '[]',
+  total numeric(12, 2) not null default 0,
+  reason text,
+  staff_id uuid references auth.users(id) on delete set null,
+  staff_name text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+drop trigger if exists credit_notes_set_updated_at on credit_notes;
+create trigger credit_notes_set_updated_at
+  before update on credit_notes
+  for each row execute function set_updated_at();
+
+alter table credit_notes enable row level security;
+
+create policy "Authenticated staff can read credit notes"
+  on credit_notes for select to authenticated using (true);
+create policy "Authenticated staff can write credit notes"
+  on credit_notes for insert to authenticated with check (true);
+
+-- Purchase returns (Goods Return Note): stock sent back to a supplier.
+-- Reduces stock and reduces what's owed to that supplier.
+create table if not exists purchase_returns (
+  id uuid primary key default gen_random_uuid(),
+  supplier_id uuid references suppliers(id) on delete set null,
+  supplier_name text,
+  purchase_id uuid references purchases(id) on delete set null,
+  items jsonb not null default '[]',
+  total numeric(12, 2) not null default 0,
+  reason text,
+  staff_id uuid references auth.users(id) on delete set null,
+  staff_name text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+drop trigger if exists purchase_returns_set_updated_at on purchase_returns;
+create trigger purchase_returns_set_updated_at
+  before update on purchase_returns
+  for each row execute function set_updated_at();
+
+alter table purchase_returns enable row level security;
+
+create policy "Authenticated staff can read purchase returns"
+  on purchase_returns for select to authenticated using (true);
+create policy "Authenticated staff can write purchase returns"
+  on purchase_returns for insert to authenticated with check (true);
+

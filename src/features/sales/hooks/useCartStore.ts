@@ -7,7 +7,7 @@ interface CartState {
   discount: number
   customerId?: string
   /** Returns false if the item is already at (or above) available stock. */
-  addItem: (item: { productId: string; name: string; unitPrice: number; stock: number }) => boolean
+  addItem: (item: { productId: string; name: string; unitPrice: number; unitCost: number; stock: number }) => boolean
   /** Returns false if incrementing would exceed maxStock. */
   incrementItem: (productId: string, delta: number, maxStock?: number) => boolean
   removeItem: (productId: string) => void
@@ -23,7 +23,7 @@ export const useCartStore = create<CartState>()(
       discount: 0,
       customerId: undefined,
 
-      addItem: ({ productId, name, unitPrice, stock }) => {
+      addItem: ({ productId, name, unitPrice, unitCost, stock }) => {
         const items = get().items
         const existing = items.find((i) => i.productId === productId)
 
@@ -41,7 +41,7 @@ export const useCartStore = create<CartState>()(
         }
 
         if (stock <= 0) return false
-        set({ items: [...items, { productId, name, quantity: 1, unitPrice, total: unitPrice }] })
+        set({ items: [...items, { productId, name, quantity: 1, unitPrice, unitCost, total: unitPrice }] })
         return true
       },
 
