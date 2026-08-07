@@ -3,6 +3,7 @@ import { Sparkles, ArrowLeft } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/field'
+import { withTimeout } from '@/lib/withTimeout'
 
 function friendlyError(message: string): string {
   if (message === 'Failed to fetch') {
@@ -12,16 +13,6 @@ function friendlyError(message: string): string {
     return 'Incorrect email or password.'
   }
   return message
-}
-
-/** Rejects after `ms` — used so a hung request shows an error instead of spinning forever. */
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error('The server is taking too long to respond. Please try again.')), ms)
-    ),
-  ])
 }
 
 export function LoginPage() {
