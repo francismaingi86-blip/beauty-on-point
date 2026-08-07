@@ -1,6 +1,7 @@
 import { db, type Sale, type SaleItem } from '@/lib/db'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/useAuthStore'
+import { applyPendingPriceIfDepleted } from '@/lib/pricing'
 
 type SupabaseSaleRow = {
   id: string
@@ -78,6 +79,10 @@ export async function completeSale(input: CompleteSaleInput): Promise<Sale> {
       })
     }
   })
+
+  for (const item of input.items) {
+    await applyPendingPriceIfDepleted(item.productId)
+  }
 
   void pushSaleAndStock(sale)
   return sale

@@ -450,3 +450,10 @@ create policy "Authenticated staff can read purchase returns"
 create policy "Authenticated staff can write purchase returns"
   on purchase_returns for insert to authenticated with check (true);
 
+-- Next-price-when-empty: when new stock arrives at a different cost while
+-- old stock is still on the shelf, the new price is queued here instead of
+-- overwriting the active price. It's applied automatically once stock
+-- reaches zero (see the app's applyPendingPriceIfDepleted logic).
+alter table products add column if not exists pending_buying_price numeric(12, 2);
+alter table products add column if not exists pending_selling_price numeric(12, 2);
+

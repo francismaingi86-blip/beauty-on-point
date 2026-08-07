@@ -1,6 +1,7 @@
 import { db, type PurchaseReturn, type PurchaseReturnItem } from '@/lib/db'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/useAuthStore'
+import { applyPendingPriceIfDepleted } from '@/lib/pricing'
 
 type SupabasePurchaseReturnRow = {
   id: string
@@ -108,6 +109,10 @@ export async function createPurchaseReturn(input: CreatePurchaseReturnInput): Pr
       }
     }
   })
+
+  for (const item of input.items) {
+    await applyPendingPriceIfDepleted(item.productId)
+  }
 
   void pushPurchaseReturnAndSideEffects(purchaseReturn)
   return purchaseReturn

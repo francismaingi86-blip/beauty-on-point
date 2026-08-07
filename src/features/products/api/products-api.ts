@@ -12,6 +12,8 @@ type SupabaseProductRow = {
   subcategory: string | null
   buying_price: number
   selling_price: number
+  pending_buying_price: number | null
+  pending_selling_price: number | null
   wholesale_price: number | null
   minimum_price: number | null
   stock: number
@@ -36,6 +38,8 @@ function toSupabaseRow(product: Product): Omit<SupabaseProductRow, 'updated_at'>
     subcategory: product.subcategory ?? null,
     buying_price: product.buyingPrice,
     selling_price: product.sellingPrice,
+    pending_buying_price: product.pendingBuyingPrice ?? null,
+    pending_selling_price: product.pendingSellingPrice ?? null,
     wholesale_price: product.wholesalePrice ?? null,
     minimum_price: product.minimumPrice ?? null,
     stock: product.stock,
@@ -60,6 +64,8 @@ function fromSupabaseRow(row: SupabaseProductRow): Product {
     subcategory: row.subcategory ?? undefined,
     buyingPrice: row.buying_price,
     sellingPrice: row.selling_price,
+    pendingBuyingPrice: row.pending_buying_price ?? undefined,
+    pendingSellingPrice: row.pending_selling_price ?? undefined,
     wholesalePrice: row.wholesale_price ?? undefined,
     minimumPrice: row.minimum_price ?? undefined,
     stock: row.stock,
@@ -86,6 +92,8 @@ export async function saveProduct(
   values: ProductFormValues,
   existingId?: string
 ): Promise<Product> {
+  const existing = existingId ? await db.products.get(existingId) : undefined
+
   const product: Product = {
     id: existingId ?? crypto.randomUUID(),
     barcode: values.barcode || undefined,
@@ -96,6 +104,11 @@ export async function saveProduct(
     subcategory: values.subcategory || undefined,
     buyingPrice: values.buyingPrice,
     sellingPrice: values.sellingPrice,
+    // Editing the product form doesn't touch a queued next price — that's
+    // only set by receiving a purchase, and cleared automatically once
+    // stock hits zero.
+    pendingBuyingPrice: existing?.pendingBuyingPrice,
+    pendingSellingPrice: existing?.pendingSellingPrice,
     wholesalePrice: values.wholesalePrice,
     minimumPrice: values.minimumPrice,
     stock: values.stock,

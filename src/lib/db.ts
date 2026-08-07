@@ -16,6 +16,10 @@ export interface Product {
   subcategory?: string
   buyingPrice: number
   sellingPrice: number
+  /** Queued price that takes effect automatically once stock hits zero —
+   * used when new stock arrives at a different cost while old stock remains. */
+  pendingBuyingPrice?: number
+  pendingSellingPrice?: number
   wholesalePrice?: number
   minimumPrice?: number
   stock: number

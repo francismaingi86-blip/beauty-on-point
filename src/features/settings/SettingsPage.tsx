@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ImagePlus, Loader2, X } from 'lucide-react'
+import { ImagePlus, Loader2, X, Camera, ImageIcon } from 'lucide-react'
 import { Card, CardHeader, CardTitle } from '@/components/ui/card'
 import { Field, Input, Textarea } from '@/components/ui/field'
 import { Button } from '@/components/ui/button'
@@ -14,7 +14,8 @@ export function SettingsPage() {
   const [saved, setSaved] = useState(false)
   const [logoUploading, setLogoUploading] = useState(false)
   const [logoError, setLogoError] = useState<string | null>(null)
-  const logoInputRef = useRef<HTMLInputElement>(null)
+  const logoCameraInputRef = useRef<HTMLInputElement>(null)
+  const logoGalleryInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (data) setForm(data)
@@ -85,21 +86,40 @@ export function SettingsPage() {
                 </div>
                 <div className="flex flex-col gap-2">
                   <input
-                    ref={logoInputRef}
+                    ref={logoCameraInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    onChange={(e) => handleLogoFile(e.target.files?.[0])}
+                  />
+                  <input
+                    ref={logoGalleryInputRef}
                     type="file"
                     accept="image/*"
                     className="hidden"
                     onChange={(e) => handleLogoFile(e.target.files?.[0])}
                   />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => logoInputRef.current?.click()}
-                    disabled={logoUploading}
-                  >
-                    {form.logoUrl ? 'Replace logo' : 'Upload logo'}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => logoCameraInputRef.current?.click()}
+                      disabled={logoUploading}
+                    >
+                      <Camera size={14} /> Take photo
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => logoGalleryInputRef.current?.click()}
+                      disabled={logoUploading}
+                    >
+                      <ImageIcon size={14} /> Gallery
+                    </Button>
+                  </div>
                   {form.logoUrl && (
                     <Button type="button" variant="ghost" size="sm" onClick={() => update('logoUrl', undefined)}>
                       <X size={14} /> Remove

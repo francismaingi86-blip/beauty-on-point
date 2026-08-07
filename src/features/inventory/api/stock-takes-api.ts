@@ -1,6 +1,7 @@
 import { db, type StockTake, type StockTakeItem } from '@/lib/db'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/useAuthStore'
+import { applyPendingPriceIfDepleted } from '@/lib/pricing'
 
 type SupabaseStockTakeRow = {
   id: string
@@ -79,6 +80,10 @@ export async function submitStockTake(input: SubmitStockTakeInput): Promise<Stoc
       })
     }
   })
+
+  for (const item of input.items) {
+    await applyPendingPriceIfDepleted(item.productId)
+  }
 
   void pushStockTakeAndStock(stockTake)
   return stockTake

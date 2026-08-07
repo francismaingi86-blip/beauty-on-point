@@ -52,7 +52,19 @@ const columns = [
   }),
   columnHelper.accessor('sellingPrice', {
     header: 'Price',
-    cell: (info) => formatKes(info.getValue()),
+    cell: (info) => {
+      const product = info.row.original
+      return (
+        <div>
+          <p>{formatKes(info.getValue())}</p>
+          {product.pendingSellingPrice != null && (
+            <p className="text-xs text-brand-gold-600" title="Applies automatically once current stock sells out">
+              Next: {formatKes(product.pendingSellingPrice)}
+            </p>
+          )}
+        </div>
+      )
+    },
   }),
   columnHelper.display({
     id: 'stock',

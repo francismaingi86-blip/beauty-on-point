@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { ImagePlus, X, Loader2 } from 'lucide-react'
+import { ImagePlus, X, Loader2, Camera, ImageIcon } from 'lucide-react'
 import { validateImageFile, uploadProductImage } from '../api/upload-image'
 import { Button } from '@/components/ui/button'
 
@@ -12,7 +12,8 @@ interface ImageUploadFieldProps {
 export function ImageUploadField({ productId, value, onChange }: ImageUploadFieldProps) {
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
+  const galleryInputRef = useRef<HTMLInputElement>(null)
 
   async function handleFile(file: File | undefined) {
     if (!file) return
@@ -53,22 +54,45 @@ export function ImageUploadField({ productId, value, onChange }: ImageUploadFiel
         </div>
 
         <div className="flex flex-col gap-2">
+          {/* capture="environment" opens the rear camera directly on mobile,
+              instead of the usual camera-or-gallery picker. */}
           <input
-            ref={inputRef}
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={(e) => handleFile(e.target.files?.[0])}
+          />
+          <input
+            ref={galleryInputRef}
             type="file"
             accept="image/*"
             className="hidden"
             onChange={(e) => handleFile(e.target.files?.[0])}
           />
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => inputRef.current?.click()}
-            disabled={uploading}
-          >
-            {value ? 'Replace photo' : 'Upload photo'}
-          </Button>
+
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => cameraInputRef.current?.click()}
+              disabled={uploading}
+            >
+              <Camera size={14} /> Take photo
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => galleryInputRef.current?.click()}
+              disabled={uploading}
+            >
+              <ImageIcon size={14} /> Gallery
+            </Button>
+          </div>
+
           {value && (
             <Button
               type="button"

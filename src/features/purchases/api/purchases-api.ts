@@ -69,7 +69,14 @@ export async function markPurchaseOrdered(id: string): Promise<void> {
   if (purchase) void pushPurchase(purchase)
 }
 
-/** Marks a purchase received and adds its item quantities into product stock. */
+/**
+ * Marks a purchase received and adds its item quantities into product
+ * stock. If an item's cost differs from the product's current buying
+ * price:
+ *  - if stock was already at zero, the new price applies immediately
+ *  - otherwise, the new price is queued and takes effect automatically
+ *    once the remaining (old-priced) stock sells out
+ */
 export async function markPurchaseReceived(id: string): Promise<void> {
   const purchase = await db.purchases.get(id)
   if (!purchase) return
@@ -84,11 +91,42 @@ export async function markPurchaseReceived(id: string): Promise<void> {
     for (const item of purchase.items) {
       const product = await db.products.get(item.productId)
       if (!product) continue
-      await db.products.update(item.productId, {
-        stock: product.stock + item.quantity,
-        updatedAt: Date.now(),
-        synced: false,
-      })
+
+      const costChanged = Math.abs(item.unitCost - product.buyingPrice) > 0.001
+      const hadStockBefore = product.stock > 0
+
+      if (costChanged && hadStockBefore) {
+        // Preserve the existing margin to suggest a matching new selling
+        // price for the queued batch.
+        const suggestedSellingPrice =
+          product.buyingPrice > 0
+            ? Math.round(item.unitCost * (product.sellingPrice / product.buyingPrice) * 100) / 100
+            : product.sellingPrice
+
+        await db.products.update(item.productId, {
+          stock: product.stock + item.quantity,
+          pendingBuyingPrice: item.unitCost,
+          pendingSellingPrice: suggestedSellingPrice,
+          updatedAt: Date.now(),
+          synced: false,
+        })
+      } else if (costChanged) {
+        // No old stock left to protect — the new price is just the price now.
+        await db.products.update(item.productId, {
+          stock: product.stock + item.quantity,
+          buyingPrice: item.unitCost,
+          pendingBuyingPrice: undefined,
+          pendingSellingPrice: undefined,
+          updatedAt: Date.now(),
+          synced: false,
+        })
+      } else {
+        await db.products.update(item.productId, {
+          stock: product.stock + item.quantity,
+          updatedAt: Date.now(),
+          synced: false,
+        })
+      }
     }
   })
 
@@ -99,7 +137,16 @@ export async function markPurchaseReceived(id: string): Promise<void> {
     for (const item of purchase.items) {
       const product = await db.products.get(item.productId)
       if (!product) continue
-      const { error } = await supabase.from('products').update({ stock: product.stock }).eq('id', item.productId)
+      const { error } = await supabase
+        .from('products')
+        .update({
+          stock: product.stock,
+          buying_price: product.buyingPrice,
+          selling_price: product.sellingPrice,
+          pending_buying_price: product.pendingBuyingPrice ?? null,
+          pending_selling_price: product.pendingSellingPrice ?? null,
+        })
+        .eq('id', item.productId)
       if (!error) await db.products.update(item.productId, { synced: true })
     }
   }

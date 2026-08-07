@@ -34,7 +34,24 @@ export interface CreateStaffInput {
 /** Calls the create-staff edge function — the only way a new login gets created. */
 export async function createStaff(input: CreateStaffInput): Promise<void> {
   const { data, error } = await supabase.functions.invoke('create-staff', { body: input })
-  if (error) throw error
+
+  if (error) {
+    // supabase-js wraps non-2xx responses in a generic error message like
+    // "Edge Function returned a non-2xx status code" — the actual reason
+    // (e.g. "email already registered") is in the response body itself.
+    let message = error.message
+    const context = (error as { context?: Response }).context
+    if (context && typeof context.json === 'function') {
+      try {
+        const body = await context.json()
+        if (body?.error) message = body.error
+      } catch {
+        // couldn't parse the body — fall back to the generic message
+      }
+    }
+    throw new Error(message)
+  }
+
   if (data?.error) throw new Error(data.error)
 }
 
