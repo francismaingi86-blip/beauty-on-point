@@ -14,6 +14,16 @@ function friendlyError(message: string): string {
   return message
 }
 
+/** Rejects after `ms` — used so a hung request shows an error instead of spinning forever. */
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error('The server is taking too long to respond. Please try again.')), ms)
+    ),
+  ])
+}
+
 export function LoginPage() {
   const [mode, setMode] = useState<'signin' | 'forgot'>('signin')
 
@@ -31,23 +41,39 @@ export function LoginPage() {
     e.preventDefault()
     setLoading(true)
     setError(null)
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    setLoading(false)
-    if (error) setError(friendlyError(error.message))
+    try {
+      const { error } = await withTimeout(
+        supabase.auth.signInWithPassword({ email, password }),
+        15000
+      )
+      if (error) setError(friendlyError(error.message))
+    } catch (err) {
+      setError(friendlyError(err instanceof Error ? err.message : 'Something went wrong. Please try again.'))
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function handleForgotPassword(e: React.FormEvent) {
     e.preventDefault()
     setResetLoading(true)
     setResetError(null)
-    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    })
-    setResetLoading(false)
-    if (error) {
-      setResetError(friendlyError(error.message))
-    } else {
-      setResetSent(true)
+    try {
+      const { error } = await withTimeout(
+        supabase.auth.resetPasswordForEmail(resetEmail, {
+          redirectTo: `${window.location.origin}/reset-password`,
+        }),
+        15000
+      )
+      if (error) {
+        setResetError(friendlyError(error.message))
+      } else {
+        setResetSent(true)
+      }
+    } catch (err) {
+      setResetError(friendlyError(err instanceof Error ? err.message : 'Something went wrong. Please try again.'))
+    } finally {
+      setResetLoading(false)
     }
   }
 
