@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Sparkles, ArrowLeft } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/field'
 import { withTimeout } from '@/lib/withTimeout'
+import { useAuthStore } from '@/stores/useAuthStore'
 
 function friendlyError(message: string): string {
   if (message === 'Failed to fetch') {
@@ -16,6 +18,18 @@ function friendlyError(message: string): string {
 }
 
 export function LoginPage() {
+  const navigate = useNavigate()
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+
+  // The single source of truth for "should I leave this page" — fires the
+  // instant the auth store reflects a real session, regardless of which
+  // code path set it (sign-in here, a restored session, anything future).
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/', { replace: true })
+    }
+  }, [isAuthenticated, navigate])
+
   const [mode, setMode] = useState<'signin' | 'forgot'>('signin')
 
   const [email, setEmail] = useState('')
@@ -37,7 +51,15 @@ export function LoginPage() {
         supabase.auth.signInWithPassword({ email, password }),
         15000
       )
-      if (error) setError(friendlyError(error.message))
+      if (error) {
+        setError(friendlyError(error.message))
+      } else {
+        // Navigate immediately on success — nothing is listening for auth
+        // state changes while we're still sitting on /login, so we can't
+        // rely on that alone. Once we land on "/", RequireAuth mounts and
+        // picks up the now-persisted session normally.
+        navigate('/', { replace: true })
+      }
     } catch (err) {
       setError(friendlyError(err instanceof Error ? err.message : 'Something went wrong. Please try again.'))
     } finally {
