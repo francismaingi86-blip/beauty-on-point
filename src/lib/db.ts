@@ -184,6 +184,20 @@ export interface PurchaseReturn {
   synced: boolean
 }
 
+export interface CachedAppSettings {
+  id: 'singleton'
+  businessName: string
+  address?: string
+  phone?: string
+  whatsapp?: string
+  email?: string
+  currency: string
+  receiptHeader?: string
+  receiptFooter?: string
+  logoUrl?: string
+  updatedAt: number
+}
+
 class AppDatabase extends Dexie {
   products!: Table<Product, string>
   customers!: Table<Customer, string>
@@ -194,6 +208,7 @@ class AppDatabase extends Dexie {
   stockTakes!: Table<StockTake, string>
   creditNotes!: Table<CreditNote, string>
   purchaseReturns!: Table<PurchaseReturn, string>
+  appSettings!: Table<CachedAppSettings, string>
 
   constructor() {
     super('beauty-on-point-db')
@@ -231,6 +246,18 @@ class AppDatabase extends Dexie {
       stockTakes: 'id, status, createdAt, synced, updatedAt',
       creditNotes: 'id, customerId, createdAt, synced, updatedAt',
       purchaseReturns: 'id, supplierId, purchaseId, createdAt, synced, updatedAt',
+    })
+    this.version(5).stores({
+      products: 'id, barcode, sku, name, category, synced, updatedAt',
+      customers: 'id, name, phone, synced, updatedAt',
+      suppliers: 'id, name, synced, updatedAt',
+      sales: 'id, customerId, status, createdAt, synced, updatedAt',
+      expenses: 'id, category, incurredAt, synced, updatedAt',
+      purchases: 'id, supplierId, status, createdAt, synced, updatedAt',
+      stockTakes: 'id, status, createdAt, synced, updatedAt',
+      creditNotes: 'id, customerId, createdAt, synced, updatedAt',
+      purchaseReturns: 'id, supplierId, purchaseId, createdAt, synced, updatedAt',
+      appSettings: 'id',
     })
   }
 }

@@ -1,4 +1,5 @@
 import { db, type CreditNote, type CreditNoteItem } from '@/lib/db'
+import { safeBulkPut } from '@/lib/safeBulkPut'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/useAuthStore'
 
@@ -147,5 +148,5 @@ export async function refreshCreditNotesFromServer(): Promise<void> {
   if (!navigator.onLine) return
   const { data, error } = await supabase.from('credit_notes').select('*')
   if (error || !data) return
-  await db.creditNotes.bulkPut((data as SupabaseCreditNoteRow[]).map(fromSupabaseRow))
+  await safeBulkPut(db.creditNotes, (data as SupabaseCreditNoteRow[]).map(fromSupabaseRow))
 }

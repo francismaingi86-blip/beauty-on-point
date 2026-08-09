@@ -1,4 +1,5 @@
 import { db, type Expense } from '@/lib/db'
+import { safeBulkPut } from '@/lib/safeBulkPut'
 import { supabase } from '@/lib/supabase'
 
 type SupabaseExpenseRow = {
@@ -83,5 +84,5 @@ export async function refreshExpensesFromServer(): Promise<void> {
   if (!navigator.onLine) return
   const { data, error } = await supabase.from('expenses').select('*')
   if (error || !data) return
-  await db.expenses.bulkPut((data as SupabaseExpenseRow[]).map(fromSupabaseRow))
+  await safeBulkPut(db.expenses, (data as SupabaseExpenseRow[]).map(fromSupabaseRow))
 }

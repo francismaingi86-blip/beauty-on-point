@@ -10,6 +10,9 @@ export interface StaffMember {
 }
 
 export async function listStaff(): Promise<StaffMember[]> {
+  if (!navigator.onLine) {
+    throw new Error("You're offline — staff accounts need an internet connection to view.")
+  }
   const { data, error } = await supabase
     .from('staff')
     .select('*')
@@ -33,6 +36,10 @@ export interface CreateStaffInput {
 
 /** Calls the create-staff edge function — the only way a new login gets created. */
 export async function createStaff(input: CreateStaffInput): Promise<void> {
+  if (!navigator.onLine) {
+    throw new Error("You're offline — adding staff needs an internet connection.")
+  }
+
   const { data, error } = await supabase.functions.invoke('create-staff', { body: input })
 
   if (error) {
@@ -56,16 +63,25 @@ export async function createStaff(input: CreateStaffInput): Promise<void> {
 }
 
 export async function updateStaffRole(id: string, role: StaffRole): Promise<void> {
+  if (!navigator.onLine) {
+    throw new Error("You're offline — this needs an internet connection.")
+  }
   const { error } = await supabase.from('staff').update({ role }).eq('id', id)
   if (error) throw error
 }
 
 export async function updateStaffName(id: string, name: string): Promise<void> {
+  if (!navigator.onLine) {
+    throw new Error("You're offline — this needs an internet connection.")
+  }
   const { error } = await supabase.from('staff').update({ name }).eq('id', id)
   if (error) throw error
 }
 
 export async function removeStaff(id: string): Promise<void> {
+  if (!navigator.onLine) {
+    throw new Error("You're offline — this needs an internet connection.")
+  }
   const { error } = await supabase.from('staff').delete().eq('id', id)
   if (error) throw error
 }

@@ -30,6 +30,25 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
+        // Without this, opening a deep link (e.g. /sales) or refreshing on
+        // any route other than "/" fails while offline — Workbox has no
+        // cached response for that exact URL. This tells it to fall back
+        // to the cached app shell for any navigation request instead.
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/(?:api|functions)\//],
+        runtimeCaching: [
+          {
+            // Product photos and logos: cache what's been seen so they
+            // still render offline, but don't let this grow unbounded.
+            urlPattern: /^https:\/\/.*\.supabase\.co\/storage\/v1\/object\/public\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'supabase-images',
+              expiration: { maxEntries: 200, maxAgeSeconds: 30 * 24 * 60 * 60 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+        ],
       },
     }),
   ],

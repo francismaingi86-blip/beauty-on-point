@@ -21,7 +21,7 @@ const ROLE_BADGE: Record<StaffRole, 'pink' | 'gold' | 'neutral'> = {
 export function StaffPage() {
   const currentUser = useAuthStore((s) => s.user)
   const isAdmin = currentUser?.role === 'administrator'
-  const { data: staff = [], isLoading } = useStaff()
+  const { data: staff = [], isLoading, isError, error } = useStaff()
   const updateRole = useUpdateStaffRole()
   const updateName = useUpdateStaffName()
   const removeStaff = useRemoveStaff()
@@ -84,6 +84,10 @@ export function StaffPage() {
 
         {isLoading ? (
           <p className="text-sm text-[var(--text-muted)]">Loading…</p>
+        ) : isError ? (
+          <p className="text-sm text-brand-gold-600">
+            {error instanceof Error ? error.message : 'Could not load staff.'}
+          </p>
         ) : (
           <div className="divide-y divide-[var(--border-subtle)]">
             {staff.map((member) => (

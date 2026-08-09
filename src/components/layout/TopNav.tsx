@@ -1,14 +1,28 @@
-import { Search, Bell, Sparkles, Sun, Moon, Wifi, WifiOff } from 'lucide-react'
+import { Search, Bell, Sparkles, Sun, Moon, Wifi, WifiOff, RefreshCw, CloudCheck } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useThemeStore } from '@/stores/useThemeStore'
 import { useUIStore } from '@/stores/useUIStore'
 import { useAuthStore } from '@/stores/useAuthStore'
+import { useSyncEngine } from '@/lib/useSyncEngine'
+import { cn } from '@/lib/utils'
+
+function timeAgo(timestamp: number | null): string {
+  if (!timestamp) return 'not yet'
+  const seconds = Math.floor((Date.now() - timestamp) / 1000)
+  if (seconds < 10) return 'just now'
+  if (seconds < 60) return `${seconds}s ago`
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m ago`
+  return `${Math.floor(minutes / 60)}h ago`
+}
 
 export function TopNav() {
   const { theme, toggleTheme } = useThemeStore()
   const { toggleAIPanel, toggleNotifications } = useUIStore()
   const { user } = useAuthStore()
   const [isOnline, setIsOnline] = useState(navigator.onLine)
+  const { pendingCount, syncing, lastSyncedAt, syncNow } = useSyncEngine()
+  const [statusOpen, setStatusOpen] = useState(false)
 
   useEffect(() => {
     const goOnline = () => setIsOnline(true)
@@ -36,19 +50,68 @@ export function TopNav() {
       </div>
 
       <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
-        <span
-          className="flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium"
-          title={isOnline ? 'Online — synced' : 'Offline — changes saved locally'}
-        >
-          {isOnline ? (
-            <Wifi size={14} className="text-emerald-500" />
-          ) : (
-            <WifiOff size={14} className="text-brand-gold-500" />
+        <div className="relative">
+          <button
+            onClick={() => setStatusOpen((v) => !v)}
+            className="focus-ring flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium hover:bg-brand-pink-50 dark:hover:bg-white/5"
+          >
+            {!isOnline ? (
+              <WifiOff size={14} className="text-brand-gold-500" />
+            ) : pendingCount > 0 || syncing ? (
+              <RefreshCw size={14} className={cn('text-brand-gold-500', syncing && 'animate-spin')} />
+            ) : (
+              <CloudCheck size={14} className="text-emerald-500" />
+            )}
+            <span className="hidden text-[var(--text-muted)] md:inline">
+              {!isOnline
+                ? 'Offline'
+                : syncing
+                  ? 'Syncing…'
+                  : pendingCount > 0
+                    ? `${pendingCount} pending`
+                    : 'Synced'}
+            </span>
+          </button>
+
+          {statusOpen && (
+            <>
+              <button
+                className="fixed inset-0 z-30 cursor-default"
+                onClick={() => setStatusOpen(false)}
+                aria-label="Close"
+              />
+              <div className="card-surface absolute right-0 top-11 z-40 w-64 p-4 text-sm shadow-[var(--shadow-glass)]">
+                <div className="mb-2 flex items-center gap-2">
+                  {isOnline ? (
+                    <Wifi size={15} className="text-emerald-500" />
+                  ) : (
+                    <WifiOff size={15} className="text-brand-gold-500" />
+                  )}
+                  <span className="font-medium">{isOnline ? 'Online' : 'Offline'}</span>
+                </div>
+                <p className="text-[var(--text-muted)]">
+                  {pendingCount > 0
+                    ? `${pendingCount} change${pendingCount === 1 ? '' : 's'} saved on this device, waiting to sync.`
+                    : "Everything on this device is synced to the cloud."}
+                </p>
+                <p className="mt-1 text-xs text-[var(--text-muted)]">Last synced: {timeAgo(lastSyncedAt)}</p>
+                <button
+                  onClick={() => syncNow()}
+                  disabled={!isOnline || syncing}
+                  className="focus-ring mt-3 flex w-full items-center justify-center gap-1.5 rounded-full bg-brand-pink-500 py-2 text-xs font-medium text-white disabled:opacity-50"
+                >
+                  <RefreshCw size={13} className={cn(syncing && 'animate-spin')} />
+                  {syncing ? 'Syncing…' : 'Sync now'}
+                </button>
+                {!isOnline && (
+                  <p className="mt-2 text-xs text-[var(--text-muted)]">
+                    Reconnect to the internet to sync — everything you do stays saved on this device meanwhile.
+                  </p>
+                )}
+              </div>
+            </>
           )}
-          <span className="hidden text-[var(--text-muted)] md:inline">
-            {isOnline ? 'Online' : 'Offline'}
-          </span>
-        </span>
+        </div>
 
         <button
           onClick={toggleTheme}

@@ -1,4 +1,5 @@
 import { db, type PurchaseReturn, type PurchaseReturnItem } from '@/lib/db'
+import { safeBulkPut } from '@/lib/safeBulkPut'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { applyPendingPriceIfDepleted } from '@/lib/pricing'
@@ -153,5 +154,5 @@ export async function refreshPurchaseReturnsFromServer(): Promise<void> {
   if (!navigator.onLine) return
   const { data, error } = await supabase.from('purchase_returns').select('*')
   if (error || !data) return
-  await db.purchaseReturns.bulkPut((data as SupabasePurchaseReturnRow[]).map(fromSupabaseRow))
+  await safeBulkPut(db.purchaseReturns, (data as SupabasePurchaseReturnRow[]).map(fromSupabaseRow))
 }

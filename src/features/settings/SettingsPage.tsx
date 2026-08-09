@@ -165,6 +165,11 @@ export function SettingsPage() {
                 {saveSettings.isPending ? 'Saving…' : 'Save changes'}
               </Button>
               {saved && <span className="text-sm text-emerald-600">Saved</span>}
+              {saveSettings.isError && (
+                <span className="text-sm text-brand-gold-600">
+                  {saveSettings.error instanceof Error ? saveSettings.error.message : 'Could not save.'}
+                </span>
+              )}
             </div>
           </form>
         </Card>

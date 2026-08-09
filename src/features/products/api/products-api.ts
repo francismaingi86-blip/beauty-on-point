@@ -1,4 +1,5 @@
 import { db, type Product } from '@/lib/db'
+import { safeBulkPut } from '@/lib/safeBulkPut'
 import { supabase } from '@/lib/supabase'
 import type { ProductFormValues } from '../types/product-schema'
 
@@ -157,5 +158,5 @@ export async function refreshProductsFromServer(): Promise<void> {
   const { data, error } = await supabase.from('products').select('*')
   if (error || !data) return
   const mapped = (data as SupabaseProductRow[]).map(fromSupabaseRow)
-  await db.products.bulkPut(mapped)
+  await safeBulkPut(db.products, mapped)
 }

@@ -1,4 +1,5 @@
 import { db, type Sale, type SaleItem } from '@/lib/db'
+import { safeBulkPut } from '@/lib/safeBulkPut'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { applyPendingPriceIfDepleted } from '@/lib/pricing'
@@ -186,5 +187,5 @@ export async function refreshSalesFromServer(): Promise<void> {
   if (!navigator.onLine) return
   const { data, error } = await supabase.from('sales').select('*').eq('status', 'completed')
   if (error || !data) return
-  await db.sales.bulkPut((data as SupabaseSaleRow[]).map(fromSupabaseRow))
+  await safeBulkPut(db.sales, (data as SupabaseSaleRow[]).map(fromSupabaseRow))
 }

@@ -1,4 +1,5 @@
 import { db, type StockTake, type StockTakeItem } from '@/lib/db'
+import { safeBulkPut } from '@/lib/safeBulkPut'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { applyPendingPriceIfDepleted } from '@/lib/pricing'
@@ -114,5 +115,5 @@ export async function refreshStockTakesFromServer(): Promise<void> {
   if (!navigator.onLine) return
   const { data, error } = await supabase.from('stock_takes').select('*')
   if (error || !data) return
-  await db.stockTakes.bulkPut((data as SupabaseStockTakeRow[]).map(fromSupabaseRow))
+  await safeBulkPut(db.stockTakes, (data as SupabaseStockTakeRow[]).map(fromSupabaseRow))
 }

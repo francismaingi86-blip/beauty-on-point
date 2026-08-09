@@ -1,4 +1,5 @@
 import { db, type Customer } from '@/lib/db'
+import { safeBulkPut } from '@/lib/safeBulkPut'
 import { supabase } from '@/lib/supabase'
 
 type SupabaseCustomerRow = {
@@ -94,5 +95,5 @@ export async function refreshCustomersFromServer(): Promise<void> {
   if (!navigator.onLine) return
   const { data, error } = await supabase.from('customers').select('*')
   if (error || !data) return
-  await db.customers.bulkPut((data as SupabaseCustomerRow[]).map(fromSupabaseRow))
+  await safeBulkPut(db.customers, (data as SupabaseCustomerRow[]).map(fromSupabaseRow))
 }
