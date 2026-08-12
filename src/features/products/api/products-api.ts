@@ -1,6 +1,7 @@
 import { db, type Product } from '@/lib/db'
 import { safeBulkPut } from '@/lib/safeBulkPut'
 import { supabase } from '@/lib/supabase'
+import { toTitleCase } from '@/lib/utils'
 import type { ProductFormValues } from '../types/product-schema'
 
 type SupabaseProductRow = {
@@ -99,10 +100,10 @@ export async function saveProduct(
     id: existingId ?? crypto.randomUUID(),
     barcode: values.barcode || undefined,
     sku: values.sku,
-    name: values.name,
-    brand: values.brand || undefined,
-    category: values.category || undefined,
-    subcategory: values.subcategory || undefined,
+    name: toTitleCase(values.name),
+    brand: values.brand ? toTitleCase(values.brand) : undefined,
+    category: values.category ? toTitleCase(values.category) : undefined,
+    subcategory: values.subcategory ? toTitleCase(values.subcategory) : undefined,
     buyingPrice: values.buyingPrice,
     sellingPrice: values.sellingPrice,
     // Editing the product form doesn't touch a queued next price — that's

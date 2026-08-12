@@ -144,7 +144,7 @@ export function SalesPage() {
               disabled={product.stock <= 0}
               className="card-surface flex flex-col items-start gap-1 p-3 text-left transition-colors hover:bg-brand-pink-50 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-white/5"
             >
-              <div className="mb-1 flex h-16 w-full items-center justify-center overflow-hidden rounded-lg bg-brand-black-50 dark:bg-white/5">
+              <div className="mb-1 flex h-28 w-full items-center justify-center overflow-hidden rounded-lg bg-brand-black-50 dark:bg-white/5">
                 {product.imageUrl ? (
                   <img src={product.imageUrl} alt={product.name} className="h-full w-full object-cover" />
                 ) : (

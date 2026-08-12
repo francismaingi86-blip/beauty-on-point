@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 import { Field, Textarea } from '@/components/ui/field'
 import { Button } from '@/components/ui/button'
 import { formatKes } from '@/lib/utils'
+import { ProductSearchPicker } from '@/components/shared/ProductSearchPicker'
 import type { Product, Supplier, PurchaseReturnItem } from '@/lib/db'
 import type { CreatePurchaseReturnInput } from '../api/purchase-returns-api'
 
@@ -18,13 +19,13 @@ export function PurchaseReturnForm({ suppliers, products, onSubmit, onCancel, is
   const [supplierId, setSupplierId] = useState('')
   const [items, setItems] = useState<PurchaseReturnItem[]>([])
   const [reason, setReason] = useState('')
-  const [selectedProductId, setSelectedProductId] = useState('')
 
-  function addItem() {
-    const product = products.find((p) => p.id === selectedProductId)
-    if (!product || items.some((i) => i.productId === product.id)) return
-    setItems([...items, { productId: product.id, name: product.name, quantity: 1, unitCost: product.buyingPrice, total: product.buyingPrice }])
-    setSelectedProductId('')
+  function addItem(product: Product) {
+    if (items.some((i) => i.productId === product.id)) return
+    setItems([
+      ...items,
+      { productId: product.id, name: product.name, quantity: 1, unitCost: product.buyingPrice, total: product.buyingPrice },
+    ])
   }
 
   function updateQuantity(productId: string, quantity: number) {
@@ -64,25 +65,12 @@ export function PurchaseReturnForm({ suppliers, products, onSubmit, onCancel, is
 
       <div>
         <span className="mb-1.5 block text-sm font-medium">Items being returned</span>
-        <div className="flex gap-2">
-          <select
-            value={selectedProductId}
-            onChange={(e) => setSelectedProductId(e.target.value)}
-            className="focus-ring flex-1 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-2 text-sm"
-          >
-            <option value="">Choose a product…</option>
-            {products
-              .filter((p) => !items.some((i) => i.productId === p.id))
-              .map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-          </select>
-          <Button type="button" variant="outline" onClick={addItem} disabled={!selectedProductId}>
-            <Plus size={15} />
-          </Button>
-        </div>
+        <ProductSearchPicker
+          products={products}
+          excludeIds={items.map((i) => i.productId)}
+          onSelect={addItem}
+          placeholder="Search a product to add…"
+        />
 
         {items.length > 0 && (
           <div className="mt-3 space-y-2">
