@@ -1,19 +1,20 @@
 import { supabase } from '@/lib/supabase'
+import { compressImage } from '@/lib/compressImage'
 
 const BUCKET = 'company-assets'
-const MAX_SIZE_BYTES = 3 * 1024 * 1024 // 3MB
+const MAX_SIZE_BYTES = 8 * 1024 * 1024
 
 export function validateLogoFile(file: File): string | null {
   if (!file.type.startsWith('image/')) return 'Please choose an image file.'
-  if (file.size > MAX_SIZE_BYTES) return 'Logo must be smaller than 3MB.'
+  if (file.size > MAX_SIZE_BYTES) return 'Logo must be smaller than 8MB.'
   return null
 }
 
 export async function uploadLogo(file: File): Promise<string> {
-  const extension = file.name.split('.').pop() ?? 'png'
-  const path = `logo-${Date.now()}.${extension}`
+  const compressed = await compressImage(file)
+  const path = `logo-${Date.now()}.jpg`
 
-  const { error } = await supabase.storage.from(BUCKET).upload(path, file, {
+  const { error } = await supabase.storage.from(BUCKET).upload(path, compressed, {
     cacheControl: '3600',
     upsert: true,
   })

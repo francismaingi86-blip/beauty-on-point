@@ -40,7 +40,7 @@ export function ProductTable({ products, onEdit, onDelete }: ProductTableProps) 
             >
               {p.imageUrl ? (
                 <>
-                  <img src={p.imageUrl} alt={p.name} className="h-full w-full object-cover" />
+                  <img src={p.imageUrl} alt={p.name} loading="lazy" decoding="async" className="h-full w-full object-cover" />
                   <span className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all group-hover:bg-black/30 group-hover:opacity-100">
                     <ZoomIn size={18} className="text-white" />
                   </span>

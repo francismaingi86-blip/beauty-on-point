@@ -146,7 +146,7 @@ export function SalesPage() {
             >
               <div className="mb-1 flex h-28 w-full items-center justify-center overflow-hidden rounded-lg bg-brand-black-50 dark:bg-white/5">
                 {product.imageUrl ? (
-                  <img src={product.imageUrl} alt={product.name} className="h-full w-full object-cover" />
+                  <img src={product.imageUrl} alt={product.name} loading="lazy" decoding="async" className="h-full w-full object-cover" />
                 ) : (
                   <span className="text-xs text-[var(--text-muted)]">No photo</span>
                 )}

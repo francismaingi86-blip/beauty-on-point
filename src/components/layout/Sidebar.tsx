@@ -21,26 +21,28 @@ import { cn } from '@/lib/utils'
 import { useUIStore } from '@/stores/useUIStore'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { supabase } from '@/lib/supabase'
+import { canAccessPage, type PageKey } from '@/lib/permissions'
 
-const NAV_ITEMS = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/sales', label: 'Sales', icon: ShoppingCart },
-  { to: '/products', label: 'Products', icon: Package },
-  { to: '/inventory', label: 'Inventory', icon: Boxes },
-  { to: '/customers', label: 'Customers', icon: Users },
-  { to: '/suppliers', label: 'Suppliers', icon: Truck },
-  { to: '/purchases', label: 'Purchases', icon: ClipboardList },
-  { to: '/expenses', label: 'Expenses', icon: Receipt },
-  { to: '/credit-notes', label: 'Credit Notes', icon: FileMinus2 },
-  { to: '/reports', label: 'Reports', icon: BarChart3 },
-  { to: '/ai-insights', label: 'AI Insights', icon: Sparkles },
-  { to: '/settings', label: 'Settings', icon: Settings },
-  { to: '/staff', label: 'Staff', icon: UsersRound },
+const NAV_ITEMS: { to: string; label: string; icon: typeof LayoutDashboard; end?: boolean; page: PageKey }[] = [
+  { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true, page: 'dashboard' },
+  { to: '/sales', label: 'Sales', icon: ShoppingCart, page: 'sales' },
+  { to: '/products', label: 'Products', icon: Package, page: 'products' },
+  { to: '/inventory', label: 'Inventory', icon: Boxes, page: 'inventory' },
+  { to: '/customers', label: 'Customers', icon: Users, page: 'customers' },
+  { to: '/suppliers', label: 'Suppliers', icon: Truck, page: 'suppliers' },
+  { to: '/purchases', label: 'Purchases', icon: ClipboardList, page: 'purchases' },
+  { to: '/expenses', label: 'Expenses', icon: Receipt, page: 'expenses' },
+  { to: '/credit-notes', label: 'Credit Notes', icon: FileMinus2, page: 'credit-notes' },
+  { to: '/reports', label: 'Reports', icon: BarChart3, page: 'reports' },
+  { to: '/ai-insights', label: 'AI Insights', icon: Sparkles, page: 'ai-insights' },
+  { to: '/settings', label: 'Settings', icon: Settings, page: 'settings' },
+  { to: '/staff', label: 'Staff', icon: UsersRound, page: 'staff' },
 ]
 
 export function Sidebar() {
   const { sidebarCollapsed, toggleSidebar } = useUIStore()
-  const { logout } = useAuthStore()
+  const { logout, user } = useAuthStore()
+  const visibleNavItems = NAV_ITEMS.filter((item) => canAccessPage(user?.role, item.page))
 
   async function handleLogout() {
     await supabase.auth.signOut()
@@ -70,7 +72,7 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-2">
-        {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
+        {visibleNavItems.map(({ to, label, icon: Icon, end }) => (
           <NavLink
             key={to}
             to={to}

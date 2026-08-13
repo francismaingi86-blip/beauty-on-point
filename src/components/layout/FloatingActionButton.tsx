@@ -2,22 +2,28 @@ import { useState } from 'react'
 import { Plus, ScanBarcode, UserPlus, ReceiptText, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { cn } from '@/lib/utils'
+import { useAuthStore } from '@/stores/useAuthStore'
+import { canAccessPage, type PageKey } from '@/lib/permissions'
 
-const ACTIONS = [
-  { label: 'New Sale', icon: ScanBarcode, to: '/sales' },
-  { label: 'Add Product', icon: Plus, to: '/products' },
-  { label: 'Add Customer', icon: UserPlus, to: '/customers' },
-  { label: 'Record Expense', icon: ReceiptText, to: '/expenses' },
+const ACTIONS: { label: string; icon: typeof Plus; to: string; page: PageKey }[] = [
+  { label: 'New Sale', icon: ScanBarcode, to: '/sales', page: 'sales' },
+  { label: 'Add Product', icon: Plus, to: '/products', page: 'products' },
+  { label: 'Add Customer', icon: UserPlus, to: '/customers', page: 'customers' },
+  { label: 'Record Expense', icon: ReceiptText, to: '/expenses', page: 'expenses' },
 ]
 
 export function FloatingActionButton() {
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
+  const role = useAuthStore((s) => s.user?.role)
+  const actions = ACTIONS.filter((a) => canAccessPage(role, a.page))
+
+  if (actions.length === 0) return null
 
   return (
     <div className="fixed bottom-6 right-6 z-30 flex flex-col items-end gap-2">
       {open &&
-        ACTIONS.map(({ label, icon: Icon, to }) => (
+        actions.map(({ label, icon: Icon, to }) => (
           <button
             key={label}
             onClick={() => {

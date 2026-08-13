@@ -1,6 +1,7 @@
 import { createBrowserRouter } from 'react-router-dom'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { RequireAuth } from '@/components/layout/RequireAuth'
+import { RequirePageAccess } from '@/components/layout/RequirePageAccess'
 import LoginPage from '@/features/auth/LoginPage'
 import ResetPasswordPage from '@/features/auth/ResetPasswordPage'
 import DashboardPage from '@/features/dashboard/DashboardPage'
@@ -28,18 +29,105 @@ export const router = createBrowserRouter([
         path: '/',
         element: <AppLayout />,
         children: [
-          { index: true, element: <DashboardPage /> },
-          { path: 'sales', element: <SalesPage /> },
-          { path: 'products', element: <ProductsPage /> },
-          { path: 'inventory', element: <InventoryPage /> },
-          { path: 'customers', element: <CustomersPage /> },
-          { path: 'suppliers', element: <SuppliersPage /> },
-          { path: 'purchases', element: <PurchasesPage /> },
-          { path: 'expenses', element: <ExpensesPage /> },
-          { path: 'credit-notes', element: <CreditNotesPage /> },
-          { path: 'reports', element: <ReportsPage /> },
-          { path: 'ai-insights', element: <AiInsightsPage /> },
-          { path: 'settings', element: <SettingsPage /> },
+          {
+            index: true,
+            element: (
+              <RequirePageAccess page="dashboard">
+                <DashboardPage />
+              </RequirePageAccess>
+            ),
+          },
+          {
+            path: 'sales',
+            element: (
+              <RequirePageAccess page="sales">
+                <SalesPage />
+              </RequirePageAccess>
+            ),
+          },
+          {
+            path: 'products',
+            element: (
+              <RequirePageAccess page="products">
+                <ProductsPage />
+              </RequirePageAccess>
+            ),
+          },
+          {
+            path: 'inventory',
+            element: (
+              <RequirePageAccess page="inventory">
+                <InventoryPage />
+              </RequirePageAccess>
+            ),
+          },
+          {
+            path: 'customers',
+            element: (
+              <RequirePageAccess page="customers">
+                <CustomersPage />
+              </RequirePageAccess>
+            ),
+          },
+          {
+            path: 'suppliers',
+            element: (
+              <RequirePageAccess page="suppliers">
+                <SuppliersPage />
+              </RequirePageAccess>
+            ),
+          },
+          {
+            path: 'purchases',
+            element: (
+              <RequirePageAccess page="purchases">
+                <PurchasesPage />
+              </RequirePageAccess>
+            ),
+          },
+          {
+            path: 'expenses',
+            element: (
+              <RequirePageAccess page="expenses">
+                <ExpensesPage />
+              </RequirePageAccess>
+            ),
+          },
+          {
+            path: 'credit-notes',
+            element: (
+              <RequirePageAccess page="credit-notes">
+                <CreditNotesPage />
+              </RequirePageAccess>
+            ),
+          },
+          {
+            path: 'reports',
+            element: (
+              <RequirePageAccess page="reports">
+                <ReportsPage />
+              </RequirePageAccess>
+            ),
+          },
+          {
+            path: 'ai-insights',
+            element: (
+              <RequirePageAccess page="ai-insights">
+                <AiInsightsPage />
+              </RequirePageAccess>
+            ),
+          },
+          {
+            path: 'settings',
+            element: (
+              <RequirePageAccess page="settings">
+                <SettingsPage />
+              </RequirePageAccess>
+            ),
+          },
+          // Staff keeps its own internal admin-only gate (it needs to show
+          // a specific "Administrators only" message rather than the
+          // generic one), so it isn't wrapped here.
           { path: 'staff', element: <StaffPage /> },
         ],
       },
