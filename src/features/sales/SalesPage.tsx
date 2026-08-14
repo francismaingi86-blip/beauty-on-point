@@ -3,6 +3,7 @@ import { useReactToPrint } from 'react-to-print'
 import { Search, Minus, Plus, Trash2, PauseCircle, Printer, Bluetooth, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { SmartImage } from '@/components/shared/SmartImage'
 import { formatKes } from '@/lib/utils'
 import { useProducts } from '@/features/products/hooks/useProducts'
 import { BarcodeScannerButton } from '@/features/products/components/BarcodeScannerButton'
@@ -146,7 +147,7 @@ export function SalesPage() {
             >
               <div className="mb-1 flex h-28 w-full items-center justify-center overflow-hidden rounded-lg bg-brand-black-50 dark:bg-white/5">
                 {product.imageUrl ? (
-                  <img src={product.imageUrl} alt={product.name} loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                  <SmartImage src={product.imageUrl} alt={product.name} className="h-full w-full object-cover" />
                 ) : (
                   <span className="text-xs text-[var(--text-muted)]">No photo</span>
                 )}

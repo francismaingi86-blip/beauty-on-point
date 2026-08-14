@@ -3,6 +3,7 @@ import { ImagePlus, X, Loader2, Camera, ImageIcon, ZoomIn } from 'lucide-react'
 import { validateImageFile, uploadProductImage } from '../api/upload-image'
 import { Button } from '@/components/ui/button'
 import { ImageLightbox } from '@/components/shared/ImageLightbox'
+import { SmartImage } from '@/components/shared/SmartImage'
 
 interface ImageUploadFieldProps {
   productId: string
@@ -58,7 +59,7 @@ export function ImageUploadField({ productId, value, onChange, onUploadingChange
             <Loader2 size={26} className="animate-spin text-brand-pink-400" />
           ) : value ? (
             <>
-              <img src={value} alt="Product" className="h-full w-full object-cover" />
+              <SmartImage src={value} alt="Product" className="h-full w-full object-cover" />
               <span className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all group-hover:bg-black/30 group-hover:opacity-100">
                 <ZoomIn size={22} className="text-white" />
               </span>

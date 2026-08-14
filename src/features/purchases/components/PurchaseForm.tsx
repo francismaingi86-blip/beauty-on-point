@@ -88,7 +88,10 @@ export function PurchaseForm({ suppliers, products, initialValues, onSubmit, onC
                   type="number"
                   min={1}
                   value={item.quantity}
-                  onChange={(e) => updateItem(item.productId, 'quantity', Number(e.target.value) || 1)}
+                  onChange={(e) => updateItem(item.productId, 'quantity', e.target.value === '' ? 0 : Number(e.target.value) || 0)}
+                  onBlur={(e) => {
+                    if (!e.target.value || Number(e.target.value) < 1) updateItem(item.productId, 'quantity', 1)
+                  }}
                   className="focus-ring w-16 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-2 py-1 text-right"
                 />
                 <span className="text-[var(--text-muted)]">×</span>

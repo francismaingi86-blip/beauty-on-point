@@ -92,7 +92,10 @@ export function CreditNoteForm({ customers, products, onSubmit, onCancel, isSavi
                   type="number"
                   min={1}
                   value={item.quantity}
-                  onChange={(e) => updateQuantity(item.productId, Number(e.target.value) || 1)}
+                  onChange={(e) => updateQuantity(item.productId, e.target.value === '' ? 0 : Number(e.target.value) || 0)}
+                  onBlur={(e) => {
+                    if (!e.target.value || Number(e.target.value) < 1) updateQuantity(item.productId, 1)
+                  }}
                   className="focus-ring w-16 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-2 py-1 text-right"
                 />
                 <span className="w-20 text-right font-medium">{formatKes(item.total)}</span>
