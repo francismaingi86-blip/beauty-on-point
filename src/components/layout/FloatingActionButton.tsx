@@ -21,7 +21,7 @@ export function FloatingActionButton() {
   if (actions.length === 0) return null
 
   return (
-    <div className="fixed bottom-6 right-6 z-30 flex flex-col items-end gap-2">
+    <div className="fixed bottom-24 right-6 z-30 flex flex-col items-end gap-2 md:bottom-6">
       {open &&
         actions.map(({ label, icon: Icon, to }) => (
           <button
