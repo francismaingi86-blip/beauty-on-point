@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
+import { db } from '@/lib/db'
 import { useAuthStore, type StaffRole } from '@/stores/useAuthStore'
 import { withTimeout } from '@/lib/withTimeout'
 
@@ -15,12 +16,20 @@ import { withTimeout } from '@/lib/withTimeout'
  * in supabase/schema.sql). Every login after that must be created by an
  * admin via the create-staff edge function.
  *
- * Every step here is timeout-protected and wrapped so a slow or failed
- * lookup can NEVER leave the person stuck on the login screen — worst
- * case they get signed in with the most restricted role (cashier) and an
- * admin can correct it under Staff. Real data access is still governed
- * by the database's own role check (current_staff_role()), not this
- * client-side guess, so failing open here doesn't weaken security.
+ * Offline handling: `supabase.auth.getSession()` reads the session that
+ * was persisted locally on a previous successful login — it needs no
+ * network at all. So once someone has logged in here before, this app
+ * stays fully usable offline going forward, using the last-known name and
+ * role cached in `authCache`. A brand new device genuinely does need
+ * network for its very first login (there's no way around verifying a
+ * password against nothing), but every login after that doesn't.
+ *
+ * Every network step here is also timeout-protected and wrapped so a
+ * slow or failed lookup can NEVER leave the person stuck on the login
+ * screen — worst case they get signed in with the most restricted role
+ * (cashier) and an admin can correct it under Staff. Real data access is
+ * still governed by the database's own role check (current_staff_role()),
+ * not this client-side guess, so failing open here doesn't weaken security.
  */
 export function useAuthSession() {
   const setUser = useAuthStore((s) => s.setUser)
@@ -34,9 +43,26 @@ export function useAuthSession() {
         return
       }
 
+      const emailFallbackName = session.user.email?.split('@')[0] ?? 'Staff'
+
+      // Offline: skip the network entirely and trust the local cache from
+      // this user's last successful online login.
+      if (!navigator.onLine) {
+        const cached = await db.authCache.get('singleton')
+        if (cached && cached.userId === session.user.id) {
+          setUser({ id: cached.userId, name: cached.name, email: cached.email, role: cached.role as StaffRole })
+        } else {
+          // Signed in with Supabase but never resolved a role on this
+          // device before (e.g. very first offline open right after
+          // install) — still let them in rather than stranding them.
+          setUser({ id: session.user.id, name: emailFallbackName, email: session.user.email ?? '', role: 'cashier' })
+        }
+        return
+      }
+
       const fallbackUser = {
         id: session.user.id,
-        name: session.user.email?.split('@')[0] ?? 'Staff',
+        name: emailFallbackName,
         email: session.user.email ?? '',
         role: 'cashier' as StaffRole,
       }
@@ -48,11 +74,20 @@ export function useAuthSession() {
         )
 
         if (staffRow) {
-          setUser({
+          const resolved = {
             id: staffRow.id,
             name: staffRow.name,
             email: staffRow.email,
             role: staffRow.role as StaffRole,
+          }
+          setUser(resolved)
+          void db.authCache.put({
+            id: 'singleton',
+            userId: resolved.id,
+            name: resolved.name,
+            email: resolved.email,
+            role: resolved.role,
+            cachedAt: Date.now(),
           })
           return
         }
@@ -78,6 +113,14 @@ export function useAuthSession() {
 
           if (inserted) {
             setUser({ id: inserted.id, name: inserted.name, email: inserted.email, role: inserted.role })
+            void db.authCache.put({
+              id: 'singleton',
+              userId: inserted.id,
+              name: inserted.name,
+              email: inserted.email,
+              role: inserted.role,
+              cachedAt: Date.now(),
+            })
             return
           }
         }
@@ -86,12 +129,15 @@ export function useAuthSession() {
         // treat as the most restricted role until an admin sorts it out.
         setUser(fallbackUser)
       } catch {
-        // The staff lookup itself failed or timed out. The person is
-        // still genuinely signed in with Supabase — let them into the
-        // app rather than stranding them on the login screen with no
-        // explanation. Their real permissions are still enforced by the
-        // database regardless of what role we guess here.
-        setUser(fallbackUser)
+        // The staff lookup itself failed or timed out (online, but the
+        // request didn't complete). Fall back to any cached identity from
+        // a previous successful login before guessing cashier.
+        const cached = await db.authCache.get('singleton')
+        if (cached && cached.userId === session.user.id) {
+          setUser({ id: cached.userId, name: cached.name, email: cached.email, role: cached.role as StaffRole })
+        } else {
+          setUser(fallbackUser)
+        }
       }
     }
 

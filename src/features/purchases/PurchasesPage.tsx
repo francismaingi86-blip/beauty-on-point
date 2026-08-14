@@ -117,12 +117,12 @@ export function PurchasesPage() {
               <div className="flex shrink-0 items-center gap-2">
                 <p className="text-sm font-semibold">{formatKes(p.total)}</p>
                 {p.status === 'draft' && (
-                  <Button variant="outline" size="sm" onClick={() => markOrdered.mutate(p.id)}>
+                  <Button variant="outline" size="sm" onClick={() => markOrdered.mutate(p.id)} disabled={markOrdered.isPending}>
                     Mark ordered
                   </Button>
                 )}
                 {(p.status === 'draft' || p.status === 'ordered') && (
-                  <Button size="sm" onClick={() => handleReceive(p)}>
+                  <Button size="sm" onClick={() => handleReceive(p)} disabled={markReceived.isPending}>
                     <PackageCheck size={14} /> Receive
                   </Button>
                 )}

@@ -30,6 +30,16 @@ export function LoginPage() {
     }
   }, [isAuthenticated, navigate])
 
+  // Handles a PWA reopening directly on /login even though this device
+  // already has a valid persisted session (e.g. reopened offline right on
+  // this screen). getSession() reads local storage only — no network
+  // needed — so this works offline too; RequireAuth picks up the rest.
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) navigate('/', { replace: true })
+    })
+  }, [navigate])
+
   const [mode, setMode] = useState<'signin' | 'forgot'>('signin')
 
   const [email, setEmail] = useState('')
@@ -46,6 +56,15 @@ export function LoginPage() {
     e.preventDefault()
     setLoading(true)
     setError(null)
+
+    if (!navigator.onLine) {
+      setError(
+        "You're offline. If you've logged in on this device before, reopen the app and it should let you straight in — a brand new login always needs internet the first time."
+      )
+      setLoading(false)
+      return
+    }
+
     try {
       const { error } = await withTimeout(
         supabase.auth.signInWithPassword({ email, password }),

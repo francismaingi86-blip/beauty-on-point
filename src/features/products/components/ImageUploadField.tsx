@@ -8,9 +8,10 @@ interface ImageUploadFieldProps {
   productId: string
   value?: string
   onChange: (url: string | undefined) => void
+  onUploadingChange?: (uploading: boolean) => void
 }
 
-export function ImageUploadField({ productId, value, onChange }: ImageUploadFieldProps) {
+export function ImageUploadField({ productId, value, onChange, onUploadingChange }: ImageUploadFieldProps) {
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [lightboxOpen, setLightboxOpen] = useState(false)
@@ -31,6 +32,7 @@ export function ImageUploadField({ productId, value, onChange }: ImageUploadFiel
 
     setError(null)
     setUploading(true)
+    onUploadingChange?.(true)
     try {
       const url = await uploadProductImage(file, productId)
       onChange(url)
@@ -38,6 +40,7 @@ export function ImageUploadField({ productId, value, onChange }: ImageUploadFiel
       setError('Upload failed. Check your connection and try again.')
     } finally {
       setUploading(false)
+      onUploadingChange?.(false)
     }
   }
 

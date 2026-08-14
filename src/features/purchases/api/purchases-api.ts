@@ -80,6 +80,10 @@ export async function markPurchaseOrdered(id: string): Promise<void> {
 export async function markPurchaseReceived(id: string): Promise<void> {
   const purchase = await db.purchases.get(id)
   if (!purchase) return
+  // Idempotency guard: if this purchase was already received, do nothing.
+  // Without this, a double-tap on "Receive" (or any retry) would add the
+  // same stock quantities into inventory a second time.
+  if (purchase.status === 'received') return
 
   await db.transaction('rw', db.purchases, db.products, async () => {
     await db.purchases.update(id, {

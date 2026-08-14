@@ -17,6 +17,7 @@ interface ProductFormProps {
 
 export function ProductForm({ initialValues, onSubmit, onCancel, isSaving }: ProductFormProps) {
   const [productId] = useState(() => initialValues?.id ?? crypto.randomUUID())
+  const [photoUploading, setPhotoUploading] = useState(false)
   const {
     register,
     handleSubmit,
@@ -61,6 +62,7 @@ export function ProductForm({ initialValues, onSubmit, onCancel, isSaving }: Pro
         productId={productId}
         value={imageUrl}
         onChange={(url) => setValue('imageUrl', url)}
+        onUploadingChange={setPhotoUploading}
       />
 
       <div className="grid grid-cols-2 gap-4">
@@ -132,8 +134,8 @@ export function ProductForm({ initialValues, onSubmit, onCancel, isSaving }: Pro
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit" disabled={isSaving}>
-          {isSaving ? 'Saving…' : 'Save product'}
+        <Button type="submit" disabled={isSaving || photoUploading}>
+          {photoUploading ? 'Uploading photo…' : isSaving ? 'Saving…' : 'Save product'}
         </Button>
       </div>
     </form>

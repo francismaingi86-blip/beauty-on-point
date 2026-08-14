@@ -37,9 +37,17 @@ import {
   Sparkles,
 } from 'lucide-react'
 
+function getTimeOfDayGreeting(): string {
+  const hour = new Date().getHours()
+  if (hour < 12) return 'Good morning'
+  if (hour < 17) return 'Good afternoon'
+  return 'Good evening'
+}
+
 export function DashboardPage() {
   const user = useAuthStore((s) => s.user)
   const firstName = user?.name?.split(' ')[0] ?? 'there'
+  const greeting = getTimeOfDayGreeting()
   const isCashierOrStorekeeper = user?.role === 'cashier' || user?.role === 'storekeeper'
   const { data: sales = [] } = useSales()
   const { data: products = [] } = useProducts()
@@ -120,7 +128,7 @@ export function DashboardPage() {
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div>
-          <h1 className="font-display text-2xl font-semibold">Good morning, {firstName}</h1>
+          <h1 className="font-display text-2xl font-semibold">{greeting}, {firstName}</h1>
           <p className="text-sm text-[var(--text-muted)]">Here's how Beauty on Point is doing today.</p>
         </div>
         <Badge variant="gold" className="w-fit">

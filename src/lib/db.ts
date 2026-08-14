@@ -198,6 +198,15 @@ export interface CachedAppSettings {
   updatedAt: number
 }
 
+export interface CachedAuthIdentity {
+  id: 'singleton'
+  userId: string
+  name: string
+  email: string
+  role: string
+  cachedAt: number
+}
+
 class AppDatabase extends Dexie {
   products!: Table<Product, string>
   customers!: Table<Customer, string>
@@ -209,6 +218,7 @@ class AppDatabase extends Dexie {
   creditNotes!: Table<CreditNote, string>
   purchaseReturns!: Table<PurchaseReturn, string>
   appSettings!: Table<CachedAppSettings, string>
+  authCache!: Table<CachedAuthIdentity, string>
 
   constructor() {
     super('beauty-on-point-db')
@@ -258,6 +268,19 @@ class AppDatabase extends Dexie {
       creditNotes: 'id, customerId, createdAt, synced, updatedAt',
       purchaseReturns: 'id, supplierId, purchaseId, createdAt, synced, updatedAt',
       appSettings: 'id',
+    })
+    this.version(6).stores({
+      products: 'id, barcode, sku, name, category, synced, updatedAt',
+      customers: 'id, name, phone, synced, updatedAt',
+      suppliers: 'id, name, synced, updatedAt',
+      sales: 'id, customerId, status, createdAt, synced, updatedAt',
+      expenses: 'id, category, incurredAt, synced, updatedAt',
+      purchases: 'id, supplierId, status, createdAt, synced, updatedAt',
+      stockTakes: 'id, status, createdAt, synced, updatedAt',
+      creditNotes: 'id, customerId, createdAt, synced, updatedAt',
+      purchaseReturns: 'id, supplierId, purchaseId, createdAt, synced, updatedAt',
+      appSettings: 'id',
+      authCache: 'id',
     })
   }
 }
