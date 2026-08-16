@@ -1,34 +1,10 @@
-import { useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  completeSale,
-  listSales,
-  syncPendingSales,
-  refreshSalesFromServer,
-  holdSale,
-  listHeldSales,
-  deleteHeldSale,
-} from '../api/sales-api'
+import { completeSale, listSales, holdSale, listHeldSales, deleteHeldSale } from '../api/sales-api'
 
 const SALES_KEY = ['sales'] as const
 const HELD_SALES_KEY = ['held-sales'] as const
 
 export function useSales() {
-  const queryClient = useQueryClient()
-
-  useEffect(() => {
-    const refresh = async () => {
-      await syncPendingSales()
-      await refreshSalesFromServer()
-      queryClient.invalidateQueries({ queryKey: SALES_KEY })
-      queryClient.invalidateQueries({ queryKey: ['products'] })
-    }
-    refresh()
-    window.addEventListener('online', refresh)
-    return () => window.removeEventListener('online', refresh)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
   return useQuery({ queryKey: SALES_KEY, queryFn: listSales })
 }
 

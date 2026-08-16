@@ -3,6 +3,7 @@ import { safeBulkPut } from '@/lib/safeBulkPut'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { applyPendingPriceIfDepleted } from '@/lib/pricing'
+import { pushStockDeltasBatch } from '@/lib/stockSync'
 
 type SupabasePurchaseReturnRow = {
   id: string
@@ -125,15 +126,7 @@ async function pushPurchaseReturnAndSideEffects(purchaseReturn: PurchaseReturn):
   const { error } = await supabase.from('purchase_returns').upsert(toSupabaseRow(purchaseReturn))
   if (!error) await db.purchaseReturns.update(purchaseReturn.id, { synced: true })
 
-  for (const item of purchaseReturn.items) {
-    const { data: newStock, error: stockError } = await supabase.rpc('adjust_product_stock', {
-      p_id: item.productId,
-      delta: -item.quantity,
-    })
-    if (!stockError && typeof newStock === 'number') {
-      await db.products.update(item.productId, { stock: newStock, synced: true })
-    }
-  }
+  await pushStockDeltasBatch(purchaseReturn.items.map((item) => ({ productId: item.productId, delta: -item.quantity })))
 
   if (purchaseReturn.supplierId) {
     const supplier = await db.suppliers.get(purchaseReturn.supplierId)

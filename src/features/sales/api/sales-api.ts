@@ -3,6 +3,7 @@ import { safeBulkPut } from '@/lib/safeBulkPut'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { applyPendingPriceIfDepleted } from '@/lib/pricing'
+import { pushStockDeltasBatch } from '@/lib/stockSync'
 
 type SupabaseSaleRow = {
   id: string
@@ -97,18 +98,7 @@ async function pushSaleAndStock(sale: Sale): Promise<void> {
     await db.sales.update(sale.id, { synced: true })
   }
 
-  for (const item of sale.items) {
-    const { data: newStock, error: stockError } = await supabase.rpc('adjust_product_stock', {
-      p_id: item.productId,
-      delta: -item.quantity,
-    })
-    if (!stockError && typeof newStock === 'number') {
-      // Reconcile local stock with the database's true post-adjustment
-      // total (which reflects every device's changes, not just this
-      // one), and mark synced now that the change has landed.
-      await db.products.update(item.productId, { stock: newStock, synced: true })
-    }
-  }
+  await pushStockDeltasBatch(sale.items.map((item) => ({ productId: item.productId, delta: -item.quantity })))
 }
 
 export async function listSales(): Promise<Sale[]> {

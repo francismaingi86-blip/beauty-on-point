@@ -1,10 +1,12 @@
-import { Search, Bell, Sparkles, Sun, Moon, Wifi, WifiOff, RefreshCw, CloudCheck } from 'lucide-react'
+import { Search, Bell, Sparkles, Sun, Moon, Wifi, WifiOff, RefreshCw, CloudCheck, AlertTriangle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useThemeStore } from '@/stores/useThemeStore'
 import { useUIStore } from '@/stores/useUIStore'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useSyncEngine } from '@/lib/useSyncEngine'
 import { cn } from '@/lib/utils'
+
+const STALE_THRESHOLD_MS = 2 * 60 * 60 * 1000 // 2 hours
 
 function timeAgo(timestamp: number | null): string {
   if (!timestamp) return 'not yet'
@@ -21,8 +23,9 @@ export function TopNav() {
   const { toggleAIPanel, toggleNotifications } = useUIStore()
   const { user } = useAuthStore()
   const [isOnline, setIsOnline] = useState(navigator.onLine)
-  const { pendingCount, syncing, lastSyncedAt, syncNow } = useSyncEngine()
+  const { pendingCount, syncing, lastSyncedAt, oldestPendingAt, syncNow } = useSyncEngine()
   const [statusOpen, setStatusOpen] = useState(false)
+  const isStale = oldestPendingAt != null && Date.now() - oldestPendingAt > STALE_THRESHOLD_MS
 
   useEffect(() => {
     const goOnline = () => setIsOnline(true)
@@ -57,19 +60,23 @@ export function TopNav() {
           >
             {!isOnline ? (
               <WifiOff size={14} className="text-brand-gold-500" />
+            ) : isStale ? (
+              <AlertTriangle size={14} className="text-red-500" />
             ) : pendingCount > 0 || syncing ? (
               <RefreshCw size={14} className={cn('text-brand-gold-500', syncing && 'animate-spin')} />
             ) : (
               <CloudCheck size={14} className="text-emerald-500" />
             )}
-            <span className="hidden text-[var(--text-muted)] md:inline">
+            <span className={cn('hidden md:inline', isStale ? 'text-red-500' : 'text-[var(--text-muted)]')}>
               {!isOnline
                 ? 'Offline'
-                : syncing
-                  ? 'Syncing…'
-                  : pendingCount > 0
-                    ? `${pendingCount} pending`
-                    : 'Synced'}
+                : isStale
+                  ? 'Not synced'
+                  : syncing
+                    ? 'Syncing…'
+                    : pendingCount > 0
+                      ? `${pendingCount} pending`
+                      : 'Synced'}
             </span>
           </button>
 
@@ -95,6 +102,15 @@ export function TopNav() {
                     : "Everything on this device is synced to the cloud."}
                 </p>
                 <p className="mt-1 text-xs text-[var(--text-muted)]">Last synced: {timeAgo(lastSyncedAt)}</p>
+                {isStale && (
+                  <div className="mt-2 flex items-start gap-2 rounded-lg bg-red-50 p-2.5 text-xs text-red-700 dark:bg-red-500/10 dark:text-red-400">
+                    <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                    <span>
+                      Some changes haven't synced in over 2 hours. Please connect to strong internet and keep the app
+                      open for a moment, or tap Sync now below.
+                    </span>
+                  </div>
+                )}
                 <button
                   onClick={() => syncNow()}
                   disabled={!isOnline || syncing}

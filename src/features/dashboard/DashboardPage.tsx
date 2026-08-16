@@ -201,16 +201,30 @@ export function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="flex items-start gap-3">
           <PackageX size={18} className="mt-0.5 shrink-0 text-red-500" />
-          <div>
+          <div className="min-w-0">
             <p className="text-sm font-semibold">{outOfStock.length} products out of stock</p>
-            <p className="text-sm text-[var(--text-muted)]">Restock to avoid missed sales.</p>
+            <p className="truncate text-sm text-[var(--text-muted)]">
+              {outOfStock.length > 0
+                ? outOfStock
+                    .slice(0, 2)
+                    .map((p) => p.name)
+                    .join(', ') + (outOfStock.length > 2 ? `, +${outOfStock.length - 2} more` : '')
+                : 'Restock to avoid missed sales.'}
+            </p>
           </div>
         </Card>
         <Card className="flex items-start gap-3">
           <AlertTriangle size={18} className="mt-0.5 shrink-0 text-brand-gold-500" />
-          <div>
+          <div className="min-w-0">
             <p className="text-sm font-semibold">{lowStock.length} products low on stock</p>
-            <p className="text-sm text-[var(--text-muted)]">Below their minimum stock level.</p>
+            <p className="truncate text-sm text-[var(--text-muted)]">
+              {lowStock.length > 0
+                ? lowStock
+                    .slice(0, 2)
+                    .map((p) => p.name)
+                    .join(', ') + (lowStock.length > 2 ? `, +${lowStock.length - 2} more` : '')
+                : 'Below their minimum stock level.'}
+            </p>
           </div>
         </Card>
         <Card className="flex items-start gap-3">

@@ -11,10 +11,12 @@ import { syncPendingStockTakes, refreshStockTakesFromServer } from '@/features/i
 
 /**
  * Pushes every unsynced local change, then pulls fresh server data —
- * across every module at once. Individual pages still sync their own
- * domain when they mount, but this runs everything together on the
- * triggers below so nothing is ever more than a minute or two stale,
- * even for data belonging to a page the person hasn't opened.
+ * across every module at once. This is the ONLY place sync happens; pages
+ * just read from the local Dexie cache and rely on this running in the
+ * background (on load, on reconnect, on app focus, and periodically) to
+ * keep that cache current. Keeping this centralized — rather than every
+ * page also syncing its own slice on mount — avoids doing the same work
+ * twice at once and competing for bandwidth.
  */
 export async function runFullSync(): Promise<void> {
   if (!navigator.onLine) return
@@ -59,4 +61,25 @@ export async function countPendingSync(): Promise<number> {
     db.stockTakes.filter((r) => !r.synced).count(),
   ])
   return counts.reduce((sum, c) => sum + c, 0)
+}
+
+/**
+ * The oldest still-unsynced change's timestamp, across every table — used
+ * to warn loudly if something has been sitting unsynced for a long time,
+ * rather than leaving it silently pending until someone happens to notice.
+ */
+export async function getOldestPendingTimestamp(): Promise<number | null> {
+  const arrays = await Promise.all([
+    db.products.filter((r) => !r.synced).toArray(),
+    db.sales.filter((r) => !r.synced).toArray(),
+    db.customers.filter((r) => !r.synced).toArray(),
+    db.suppliers.filter((r) => !r.synced).toArray(),
+    db.expenses.filter((r) => !r.synced).toArray(),
+    db.purchases.filter((r) => !r.synced).toArray(),
+    db.purchaseReturns.filter((r) => !r.synced).toArray(),
+    db.creditNotes.filter((r) => !r.synced).toArray(),
+    db.stockTakes.filter((r) => !r.synced).toArray(),
+  ])
+  const timestamps = arrays.flat().map((r) => r.updatedAt)
+  return timestamps.length > 0 ? Math.min(...timestamps) : null
 }

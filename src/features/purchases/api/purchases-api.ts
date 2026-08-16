@@ -1,5 +1,6 @@
 import { db, type Purchase, type PurchaseItem } from '@/lib/db'
 import { supabase } from '@/lib/supabase'
+import { pushStockDeltasBatch } from '@/lib/stockSync'
 
 type SupabasePurchaseRow = {
   id: string
@@ -138,18 +139,12 @@ export async function markPurchaseReceived(id: string): Promise<void> {
   if (updated) void pushPurchase(updated)
 
   if (navigator.onLine) {
+    await pushStockDeltasBatch(purchase.items.map((item) => ({ productId: item.productId, delta: item.quantity })))
+
     for (const item of purchase.items) {
       const product = await db.products.get(item.productId)
       if (!product) continue
 
-      const { data: newStock, error: stockError } = await supabase.rpc('adjust_product_stock', {
-        p_id: item.productId,
-        delta: item.quantity,
-      })
-
-      // Price fields are pushed separately from stock so this update can
-      // never clobber the atomic stock adjustment above with a stale
-      // locally-computed number.
       const { error: priceError } = await supabase
         .from('products')
         .update({
@@ -160,11 +155,7 @@ export async function markPurchaseReceived(id: string): Promise<void> {
         })
         .eq('id', item.productId)
 
-      if (!stockError && !priceError) {
-        const updates: Partial<typeof product> = { synced: true }
-        if (typeof newStock === 'number') updates.stock = newStock
-        await db.products.update(item.productId, updates)
-      }
+      if (!priceError) await db.products.update(item.productId, { synced: true })
     }
   }
 }

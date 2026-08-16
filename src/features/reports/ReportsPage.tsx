@@ -12,7 +12,8 @@ import { useCustomers } from '@/features/customers/hooks/useCustomers'
 import { usePurchases } from '@/features/purchases/hooks/usePurchases'
 import { usePurchaseReturns } from '@/features/purchases/hooks/usePurchaseReturns'
 import { useCreditNotes } from '@/features/credit-notes/hooks/useCreditNotes'
-import { computeStockValuation, computeProfitAndLoss } from '@/features/ai-insights/lib/analytics'
+import { computeStockValuation, computeProfitAndLoss, computeReorderList } from '@/features/ai-insights/lib/analytics'
+import { ReorderList } from '@/components/shared/ReorderList'
 import type { Sale } from '@/lib/db'
 
 function isSameDay(a: number, b: number) {
@@ -167,6 +168,7 @@ export function ReportsPage() {
     .reduce((sum, c) => sum + c.total, 0)
 
   const stockValuation = computeStockValuation(products)
+  const reorderList = computeReorderList(products)
   const profitAndLoss = computeProfitAndLoss({
     products,
     sales: allSales,
@@ -377,6 +379,13 @@ export function ReportsPage() {
           )}
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Products to reorder</CardTitle>
+        </CardHeader>
+        <ReorderList items={reorderList} />
+      </Card>
 
       <Card>
         <CardHeader>

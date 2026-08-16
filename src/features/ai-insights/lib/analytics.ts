@@ -92,6 +92,36 @@ export function computeStockAlerts(products: Product[]) {
   return { outOfStock, lowStock, expiringSoon }
 }
 
+export interface ReorderSuggestion {
+  product: Product
+  suggestedQuantity: number
+  urgent: boolean
+}
+
+/**
+ * A real, actionable reorder list — the specific products that need
+ * restocking, by name, with a suggested quantity for each, instead of
+ * just a count like "12 products need reordering". Most urgent (already
+ * out of stock) first.
+ *
+ * Suggested quantity: enough to reach the product's maximum stock level
+ * if one's set, otherwise enough to reach double its minimum stock — a
+ * reasonable buffer above the reorder point either way.
+ */
+export function computeReorderList(products: Product[]): ReorderSuggestion[] {
+  return products
+    .filter((p) => p.stock <= p.minimumStock)
+    .map((product) => {
+      const target = product.maximumStock ?? product.minimumStock * 2
+      const suggestedQuantity = Math.max(Math.round(target - product.stock), 1)
+      return { product, suggestedQuantity, urgent: product.stock <= 0 }
+    })
+    .sort((a, b) => {
+      if (a.urgent !== b.urgent) return a.urgent ? -1 : 1
+      return a.product.name.localeCompare(b.product.name)
+    })
+}
+
 // ---------- Business health score ----------
 
 export function computeBusinessHealthScore(products: Product[], sales: Sale[], expenses: Expense[]): number {

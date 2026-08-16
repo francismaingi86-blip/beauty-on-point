@@ -493,3 +493,25 @@ $$;
 
 grant execute on function adjust_product_stock(uuid, numeric) to authenticated;
 
+-- Batch version: applies many stock adjustments in a single database round
+-- trip instead of one network call per line item. A 5-item sale used to
+-- mean 5 separate requests to the server, each waiting on the last —
+-- meaningfully slower on mobile data. This does them all at once.
+create or replace function adjust_product_stock_batch(items jsonb)
+returns table(id uuid, new_stock numeric)
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  return query
+  update products p
+  set stock = greatest(p.stock + (i.delta)::numeric, 0)
+  from jsonb_to_recordset(items) as i(id uuid, delta numeric)
+  where p.id = i.id
+  returning p.id, p.stock;
+end;
+$$;
+
+grant execute on function adjust_product_stock_batch(jsonb) to authenticated;
+

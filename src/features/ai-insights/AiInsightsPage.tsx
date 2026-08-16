@@ -11,8 +11,10 @@ import {
   computeSlowMovers,
   computeBusinessHealthScore,
   computeStockAlerts,
+  computeReorderList,
   type Recommendation,
 } from './lib/analytics'
+import { ReorderList } from '@/components/shared/ReorderList'
 
 const REC_ICON: Record<Recommendation['type'], typeof PackageX> = {
   restock: PackageX,
@@ -45,6 +47,7 @@ export function AiInsightsPage() {
   const slowMovers = computeSlowMovers(products, sales)
   const healthScore = computeBusinessHealthScore(products, sales, expenses)
   const { outOfStock, lowStock, expiringSoon } = computeStockAlerts(products)
+  const reorderList = computeReorderList(products)
 
   return (
     <div className="space-y-4">
@@ -113,6 +116,13 @@ export function AiInsightsPage() {
           </div>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Products to reorder</CardTitle>
+        </CardHeader>
+        <ReorderList items={reorderList} />
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>

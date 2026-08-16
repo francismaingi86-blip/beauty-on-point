@@ -2,6 +2,7 @@ import { db, type CreditNote, type CreditNoteItem } from '@/lib/db'
 import { safeBulkPut } from '@/lib/safeBulkPut'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/useAuthStore'
+import { pushStockDeltasBatch } from '@/lib/stockSync'
 
 type SupabaseCreditNoteRow = {
   id: string
@@ -119,15 +120,7 @@ async function pushCreditNoteAndSideEffects(creditNote: CreditNote): Promise<voi
   const { error } = await supabase.from('credit_notes').upsert(toSupabaseRow(creditNote))
   if (!error) await db.creditNotes.update(creditNote.id, { synced: true })
 
-  for (const item of creditNote.items) {
-    const { data: newStock, error: stockError } = await supabase.rpc('adjust_product_stock', {
-      p_id: item.productId,
-      delta: item.quantity,
-    })
-    if (!stockError && typeof newStock === 'number') {
-      await db.products.update(item.productId, { stock: newStock, synced: true })
-    }
-  }
+  await pushStockDeltasBatch(creditNote.items.map((item) => ({ productId: item.productId, delta: item.quantity })))
 
   if (creditNote.customerId) {
     const customer = await db.customers.get(creditNote.customerId)
