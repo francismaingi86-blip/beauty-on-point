@@ -141,17 +141,30 @@ export async function markPurchaseReceived(id: string): Promise<void> {
     for (const item of purchase.items) {
       const product = await db.products.get(item.productId)
       if (!product) continue
-      const { error } = await supabase
+
+      const { data: newStock, error: stockError } = await supabase.rpc('adjust_product_stock', {
+        p_id: item.productId,
+        delta: item.quantity,
+      })
+
+      // Price fields are pushed separately from stock so this update can
+      // never clobber the atomic stock adjustment above with a stale
+      // locally-computed number.
+      const { error: priceError } = await supabase
         .from('products')
         .update({
-          stock: product.stock,
           buying_price: product.buyingPrice,
           selling_price: product.sellingPrice,
           pending_buying_price: product.pendingBuyingPrice ?? null,
           pending_selling_price: product.pendingSellingPrice ?? null,
         })
         .eq('id', item.productId)
-      if (!error) await db.products.update(item.productId, { synced: true })
+
+      if (!stockError && !priceError) {
+        const updates: Partial<typeof product> = { synced: true }
+        if (typeof newStock === 'number') updates.stock = newStock
+        await db.products.update(item.productId, updates)
+      }
     }
   }
 }

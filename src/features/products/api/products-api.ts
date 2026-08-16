@@ -86,7 +86,7 @@ function fromSupabaseRow(row: SupabaseProductRow): Product {
 /** All products, newest first. Always reads from the local Dexie cache. */
 export async function listProducts(): Promise<Product[]> {
   const all = await db.products.toArray()
-  return all.sort((a, b) => b.updatedAt - a.updatedAt)
+  return all.sort((a, b) => a.name.localeCompare(b.name))
 }
 
 /** Create or update a product locally, then try to push it to Supabase. */
@@ -100,7 +100,7 @@ export async function saveProduct(
     id: existingId ?? crypto.randomUUID(),
     barcode: values.barcode || undefined,
     sku: values.sku,
-    name: toTitleCase(values.name),
+    name: values.name.trim().toUpperCase(),
     brand: values.brand ? toTitleCase(values.brand) : undefined,
     category: values.category ? toTitleCase(values.category) : undefined,
     subcategory: values.subcategory ? toTitleCase(values.subcategory) : undefined,

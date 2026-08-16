@@ -98,14 +98,15 @@ async function pushSaleAndStock(sale: Sale): Promise<void> {
   }
 
   for (const item of sale.items) {
-    const product = await db.products.get(item.productId)
-    if (!product) continue
-    const { error: stockError } = await supabase
-      .from('products')
-      .update({ stock: product.stock })
-      .eq('id', item.productId)
-    if (!stockError) {
-      await db.products.update(item.productId, { synced: true })
+    const { data: newStock, error: stockError } = await supabase.rpc('adjust_product_stock', {
+      p_id: item.productId,
+      delta: -item.quantity,
+    })
+    if (!stockError && typeof newStock === 'number') {
+      // Reconcile local stock with the database's true post-adjustment
+      // total (which reflects every device's changes, not just this
+      // one), and mark synced now that the change has landed.
+      await db.products.update(item.productId, { stock: newStock, synced: true })
     }
   }
 }

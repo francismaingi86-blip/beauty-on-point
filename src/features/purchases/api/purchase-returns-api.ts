@@ -126,10 +126,13 @@ async function pushPurchaseReturnAndSideEffects(purchaseReturn: PurchaseReturn):
   if (!error) await db.purchaseReturns.update(purchaseReturn.id, { synced: true })
 
   for (const item of purchaseReturn.items) {
-    const product = await db.products.get(item.productId)
-    if (!product) continue
-    const { error: stockError } = await supabase.from('products').update({ stock: product.stock }).eq('id', item.productId)
-    if (!stockError) await db.products.update(item.productId, { synced: true })
+    const { data: newStock, error: stockError } = await supabase.rpc('adjust_product_stock', {
+      p_id: item.productId,
+      delta: -item.quantity,
+    })
+    if (!stockError && typeof newStock === 'number') {
+      await db.products.update(item.productId, { stock: newStock, synced: true })
+    }
   }
 
   if (purchaseReturn.supplierId) {

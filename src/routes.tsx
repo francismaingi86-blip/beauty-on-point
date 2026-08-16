@@ -1,4 +1,6 @@
+import { lazy, Suspense } from 'react'
 import { createBrowserRouter } from 'react-router-dom'
+import { Sparkles } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { RequireAuth } from '@/components/layout/RequireAuth'
 import { RequirePageAccess } from '@/components/layout/RequirePageAccess'
@@ -7,16 +9,32 @@ import ResetPasswordPage from '@/features/auth/ResetPasswordPage'
 import DashboardPage from '@/features/dashboard/DashboardPage'
 import SalesPage from '@/features/sales/SalesPage'
 import ProductsPage from '@/features/products/ProductsPage'
-import InventoryPage from '@/features/inventory/InventoryPage'
-import CustomersPage from '@/features/customers/CustomersPage'
-import SuppliersPage from '@/features/suppliers/SuppliersPage'
-import PurchasesPage from '@/features/purchases/PurchasesPage'
-import ExpensesPage from '@/features/expenses/ExpensesPage'
-import CreditNotesPage from '@/features/credit-notes/CreditNotesPage'
-import ReportsPage from '@/features/reports/ReportsPage'
-import AiInsightsPage from '@/features/ai-insights/AiInsightsPage'
-import SettingsPage from '@/features/settings/SettingsPage'
-import StaffPage from '@/features/staff/StaffPage'
+
+// Everything below is used less often than Dashboard/Sales/Products, so it
+// loads on demand instead of bloating the very first page load — this
+// matters a lot on the mobile data connections this app is mostly used on.
+const InventoryPage = lazy(() => import('@/features/inventory/InventoryPage'))
+const CustomersPage = lazy(() => import('@/features/customers/CustomersPage'))
+const SuppliersPage = lazy(() => import('@/features/suppliers/SuppliersPage'))
+const PurchasesPage = lazy(() => import('@/features/purchases/PurchasesPage'))
+const ExpensesPage = lazy(() => import('@/features/expenses/ExpensesPage'))
+const CreditNotesPage = lazy(() => import('@/features/credit-notes/CreditNotesPage'))
+const ReportsPage = lazy(() => import('@/features/reports/ReportsPage'))
+const AiInsightsPage = lazy(() => import('@/features/ai-insights/AiInsightsPage'))
+const SettingsPage = lazy(() => import('@/features/settings/SettingsPage'))
+const StaffPage = lazy(() => import('@/features/staff/StaffPage'))
+
+function PageLoading() {
+  return (
+    <div className="flex min-h-[50vh] items-center justify-center">
+      <Sparkles size={22} className="animate-pulse text-brand-pink-400" />
+    </div>
+  )
+}
+
+function lazyPage(node: React.ReactNode) {
+  return <Suspense fallback={<PageLoading />}>{node}</Suspense>
+}
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
@@ -55,7 +73,7 @@ export const router = createBrowserRouter([
           },
           {
             path: 'inventory',
-            element: (
+            element: lazyPage(
               <RequirePageAccess page="inventory">
                 <InventoryPage />
               </RequirePageAccess>
@@ -63,7 +81,7 @@ export const router = createBrowserRouter([
           },
           {
             path: 'customers',
-            element: (
+            element: lazyPage(
               <RequirePageAccess page="customers">
                 <CustomersPage />
               </RequirePageAccess>
@@ -71,7 +89,7 @@ export const router = createBrowserRouter([
           },
           {
             path: 'suppliers',
-            element: (
+            element: lazyPage(
               <RequirePageAccess page="suppliers">
                 <SuppliersPage />
               </RequirePageAccess>
@@ -79,7 +97,7 @@ export const router = createBrowserRouter([
           },
           {
             path: 'purchases',
-            element: (
+            element: lazyPage(
               <RequirePageAccess page="purchases">
                 <PurchasesPage />
               </RequirePageAccess>
@@ -87,7 +105,7 @@ export const router = createBrowserRouter([
           },
           {
             path: 'expenses',
-            element: (
+            element: lazyPage(
               <RequirePageAccess page="expenses">
                 <ExpensesPage />
               </RequirePageAccess>
@@ -95,7 +113,7 @@ export const router = createBrowserRouter([
           },
           {
             path: 'credit-notes',
-            element: (
+            element: lazyPage(
               <RequirePageAccess page="credit-notes">
                 <CreditNotesPage />
               </RequirePageAccess>
@@ -103,7 +121,7 @@ export const router = createBrowserRouter([
           },
           {
             path: 'reports',
-            element: (
+            element: lazyPage(
               <RequirePageAccess page="reports">
                 <ReportsPage />
               </RequirePageAccess>
@@ -111,7 +129,7 @@ export const router = createBrowserRouter([
           },
           {
             path: 'ai-insights',
-            element: (
+            element: lazyPage(
               <RequirePageAccess page="ai-insights">
                 <AiInsightsPage />
               </RequirePageAccess>
@@ -119,7 +137,7 @@ export const router = createBrowserRouter([
           },
           {
             path: 'settings',
-            element: (
+            element: lazyPage(
               <RequirePageAccess page="settings">
                 <SettingsPage />
               </RequirePageAccess>
@@ -128,7 +146,7 @@ export const router = createBrowserRouter([
           // Staff keeps its own internal admin-only gate (it needs to show
           // a specific "Administrators only" message rather than the
           // generic one), so it isn't wrapped here.
-          { path: 'staff', element: <StaffPage /> },
+          { path: 'staff', element: lazyPage(<StaffPage />) },
         ],
       },
     ],

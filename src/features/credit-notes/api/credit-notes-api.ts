@@ -120,10 +120,13 @@ async function pushCreditNoteAndSideEffects(creditNote: CreditNote): Promise<voi
   if (!error) await db.creditNotes.update(creditNote.id, { synced: true })
 
   for (const item of creditNote.items) {
-    const product = await db.products.get(item.productId)
-    if (!product) continue
-    const { error: stockError } = await supabase.from('products').update({ stock: product.stock }).eq('id', item.productId)
-    if (!stockError) await db.products.update(item.productId, { synced: true })
+    const { data: newStock, error: stockError } = await supabase.rpc('adjust_product_stock', {
+      p_id: item.productId,
+      delta: item.quantity,
+    })
+    if (!stockError && typeof newStock === 'number') {
+      await db.products.update(item.productId, { stock: newStock, synced: true })
+    }
   }
 
   if (creditNote.customerId) {
