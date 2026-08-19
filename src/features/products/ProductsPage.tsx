@@ -1,21 +1,31 @@
-import { useMemo, useState } from 'react'
-import { Plus, Search } from 'lucide-react'
+import { useMemo, useRef, useState } from 'react'
+import { useReactToPrint } from 'react-to-print'
+import { Plus, Search, FileDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
 import { ProductForm } from './components/ProductForm'
 import { ProductTable } from './components/ProductTable'
+import { InventoryReport } from './components/InventoryReport'
 import { useProducts, useSaveProduct, useDeleteProduct } from './hooks/useProducts'
+import { useSettings } from '@/features/settings/hooks/useSettings'
 import type { Product } from '@/lib/db'
 import type { ProductFormValues } from './types/product-schema'
 
 export function ProductsPage() {
   const { data: products = [], isLoading } = useProducts()
+  const { data: settings } = useSettings()
   const saveProduct = useSaveProduct()
   const deleteProduct = useDeleteProduct()
 
   const [search, setSearch] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<Product | null>(null)
+
+  const reportRef = useRef<HTMLDivElement>(null)
+  const printReport = useReactToPrint({
+    contentRef: reportRef,
+    documentTitle: `Inventory Report - ${new Date().toLocaleDateString('en-KE')}`,
+  })
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase()
@@ -61,9 +71,14 @@ export function ProductsPage() {
             {products.length} product{products.length === 1 ? '' : 's'} in your catalog
           </p>
         </div>
-        <Button onClick={openCreate}>
-          <Plus size={16} /> Add product
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => printReport()} disabled={products.length === 0}>
+            <FileDown size={16} /> Download PDF
+          </Button>
+          <Button onClick={openCreate}>
+            <Plus size={16} /> Add product
+          </Button>
+        </div>
       </div>
 
       <div className="relative max-w-sm">
@@ -94,6 +109,15 @@ export function ProductsPage() {
           isSaving={saveProduct.isPending}
         />
       </Dialog>
+
+      <div style={{ position: 'absolute', top: '-10000px', left: '-10000px' }} aria-hidden="true">
+        <InventoryReport
+          ref={reportRef}
+          products={products}
+          businessName={settings?.businessName ?? 'Beauty on Point'}
+          showCostPrices
+        />
+      </div>
     </div>
   )
 }
