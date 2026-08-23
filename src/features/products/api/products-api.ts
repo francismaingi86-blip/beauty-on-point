@@ -178,6 +178,7 @@ export async function bulkCreateProducts(rows: ImportRowToAdd[]): Promise<Produc
     category: row.category ? toTitleCase(row.category) : undefined,
     buyingPrice: row.buyingPrice,
     sellingPrice: row.sellingPrice,
+    wholesalePrice: row.wholesalePrice,
     stock: row.stock,
     minimumStock: row.minimumStock,
     updatedAt: now,

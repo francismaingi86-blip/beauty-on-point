@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react'
-import { Upload, ShieldCheck, Plus, SkipForward, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { Upload, ShieldCheck, Plus, SkipForward, AlertCircle, CheckCircle2, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { formatKes } from '@/lib/utils'
-import { parseImportFile } from '../lib/parseImportFile'
-import { analyzeImport, type ImportAnalysis } from '../lib/analyzeImport'
+import { parseImportFile, type RawImportRow } from '../lib/parseImportFile'
+import { parsePdfCatalog } from '../lib/parsePdfCatalog'
+import { analyzeImport, type ImportRowToAdd, type ImportRowSkipped } from '../lib/analyzeImport'
 import { useBulkCreateProducts } from '../hooks/useBulkImport'
 import type { Product } from '@/lib/db'
 
@@ -13,15 +14,26 @@ interface ImportProductsDialogProps {
   onDone: () => void
 }
 
+interface EditableRow extends ImportRowToAdd {
+  included: boolean
+}
+
 const SAMPLE_CSV = `Name,SKU,Category,Buying Price,Selling Price,Stock,Minimum Stock
 Amara 200ml,AMR-200,Body Care,350,500,10,3
 Versman 400ml,VER-400,Body Care,420,600,8,3
 `
 
+async function parseAnyFile(file: File): Promise<RawImportRow[]> {
+  const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
+  return isPdf ? parsePdfCatalog(file) : parseImportFile(file)
+}
+
 export function ImportProductsDialog({ existingProducts, onDone }: ImportProductsDialogProps) {
   const [step, setStep] = useState<'upload' | 'preview' | 'done'>('upload')
   const [fileName, setFileName] = useState('')
-  const [analysis, setAnalysis] = useState<ImportAnalysis | null>(null)
+  const [editableRows, setEditableRows] = useState<EditableRow[]>([])
+  const [skipped, setSkipped] = useState<ImportRowSkipped[]>([])
+  const [addedCount, setAddedCount] = useState(0)
   const [parseError, setParseError] = useState<string | null>(null)
   const [parsing, setParsing] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -33,15 +45,25 @@ export function ImportProductsDialog({ existingProducts, onDone }: ImportProduct
     setParseError(null)
     setParsing(true)
     try {
-      const rows = await parseImportFile(file)
+      const rows = await parseAnyFile(file)
       if (rows.length === 0) {
-        setParseError("Couldn't find any rows in that file — check it has a header row and at least one product.")
+        setParseError(
+          "Couldn't find any usable rows in that file — check it has clear product rows with a name and prices."
+        )
         return
       }
-      setAnalysis(analyzeImport(rows, existingProducts))
+      const analysis = analyzeImport(rows, existingProducts)
+      if (analysis.toAdd.length === 0 && analysis.toSkip.length === 0) {
+        setParseError("Couldn't recognize any products in that file — it may not match an expected format.")
+        return
+      }
+      setEditableRows(analysis.toAdd.map((row) => ({ ...row, included: true })))
+      setSkipped(analysis.toSkip)
       setStep('preview')
     } catch {
-      setParseError('Could not read that file. Make sure it\'s a .csv or .xlsx file exported from Excel, Google Sheets, or similar.')
+      setParseError(
+        "Could not read that file. Make sure it's a .csv, .xlsx, or .pdf catalog export."
+      )
     } finally {
       setParsing(false)
     }
@@ -57,21 +79,34 @@ export function ImportProductsDialog({ existingProducts, onDone }: ImportProduct
     URL.revokeObjectURL(url)
   }
 
-  function handleConfirm() {
-    if (!analysis) return
-    bulkCreate.mutate(analysis.toAdd, { onSuccess: () => setStep('done') })
+  function updateRowName(rowNumber: number, name: string) {
+    setEditableRows((rows) => rows.map((r) => (r.rowNumber === rowNumber ? { ...r, name } : r)))
   }
 
-  if (step === 'done' && analysis) {
+  function toggleRow(rowNumber: number) {
+    setEditableRows((rows) => rows.map((r) => (r.rowNumber === rowNumber ? { ...r, included: !r.included } : r)))
+  }
+
+  const includedRows = editableRows.filter((r) => r.included)
+
+  function handleConfirm() {
+    if (includedRows.length === 0) return
+    bulkCreate.mutate(includedRows, {
+      onSuccess: () => {
+        setAddedCount(includedRows.length)
+        setStep('done')
+      },
+    })
+  }
+
+  if (step === 'done') {
     return (
       <div className="space-y-4 text-center">
         <CheckCircle2 size={32} className="mx-auto text-emerald-500" />
         <p className="font-medium">
-          Added {analysis.toAdd.length} new product{analysis.toAdd.length === 1 ? '' : 's'}
+          Added {addedCount} new product{addedCount === 1 ? '' : 's'}
         </p>
-        <p className="text-sm text-[var(--text-muted)]">
-          Everything else in your catalog was left exactly as it was.
-        </p>
+        <p className="text-sm text-[var(--text-muted)]">Everything else in your catalog was left exactly as it was.</p>
         <Button className="w-full" onClick={onDone}>
           Done
         </Button>
@@ -79,27 +114,43 @@ export function ImportProductsDialog({ existingProducts, onDone }: ImportProduct
     )
   }
 
-  if (step === 'preview' && analysis) {
+  if (step === 'preview') {
     return (
       <div className="space-y-4">
         <div className="flex items-start gap-2 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400">
           <ShieldCheck size={16} className="mt-0.5 shrink-0" />
-          <span>Nothing is added yet. Review below, then confirm — existing products are never changed.</span>
+          <span>
+            Nothing is added yet. Uncheck anything you don't want, fix any name that looks off, then confirm.
+          </span>
         </div>
 
         <div>
           <div className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
-            <Plus size={15} /> Will add ({analysis.toAdd.length})
+            <Plus size={15} /> Will add ({includedRows.length} of {editableRows.length})
           </div>
-          {analysis.toAdd.length === 0 ? (
+          {editableRows.length === 0 ? (
             <p className="text-sm text-[var(--text-muted)]">Nothing new found in this file.</p>
           ) : (
-            <div className="card-surface max-h-48 space-y-1.5 overflow-y-auto p-3">
-              {analysis.toAdd.map((row) => (
-                <div key={row.rowNumber} className="flex items-center justify-between text-sm">
-                  <span className="truncate">{row.name}</span>
-                  <span className="shrink-0 text-xs text-[var(--text-muted)]">
-                    {row.stock} units · {formatKes(row.sellingPrice)}
+            <div className="card-surface max-h-72 space-y-1 overflow-y-auto p-2">
+              {editableRows.map((row) => (
+                <div key={row.rowNumber} className="flex items-center gap-2 rounded-lg p-1.5 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={row.included}
+                    onChange={() => toggleRow(row.rowNumber)}
+                    className="h-4 w-4 shrink-0 accent-brand-pink-500"
+                  />
+                  <div className="relative flex-1">
+                    <input
+                      value={row.name}
+                      onChange={(e) => updateRowName(row.rowNumber, e.target.value)}
+                      disabled={!row.included}
+                      className="focus-ring w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] py-1 pl-2 pr-6 text-sm disabled:opacity-40"
+                    />
+                    <Pencil size={11} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+                  </div>
+                  <span className="w-24 shrink-0 text-right text-xs text-[var(--text-muted)]">
+                    {formatKes(row.sellingPrice)}
                   </span>
                 </div>
               ))}
@@ -107,13 +158,13 @@ export function ImportProductsDialog({ existingProducts, onDone }: ImportProduct
           )}
         </div>
 
-        {analysis.toSkip.length > 0 && (
+        {skipped.length > 0 && (
           <div>
             <div className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-[var(--text-muted)]">
-              <SkipForward size={15} /> Will skip — already in your catalog ({analysis.toSkip.length})
+              <SkipForward size={15} /> Will skip — already in your catalog ({skipped.length})
             </div>
             <div className="card-surface max-h-32 space-y-1.5 overflow-y-auto p-3">
-              {analysis.toSkip.map((row) => (
+              {skipped.map((row) => (
                 <div key={row.rowNumber} className="flex items-center justify-between text-sm">
                   <span className="truncate text-[var(--text-muted)]">{row.name}</span>
                   <Badge variant="neutral" className="shrink-0">
@@ -129,8 +180,8 @@ export function ImportProductsDialog({ existingProducts, onDone }: ImportProduct
           <Button variant="outline" onClick={() => setStep('upload')}>
             Back
           </Button>
-          <Button onClick={handleConfirm} disabled={analysis.toAdd.length === 0 || bulkCreate.isPending}>
-            {bulkCreate.isPending ? 'Adding…' : `Add ${analysis.toAdd.length} product${analysis.toAdd.length === 1 ? '' : 's'}`}
+          <Button onClick={handleConfirm} disabled={includedRows.length === 0 || bulkCreate.isPending}>
+            {bulkCreate.isPending ? 'Adding…' : `Add ${includedRows.length} product${includedRows.length === 1 ? '' : 's'}`}
           </Button>
         </div>
       </div>
@@ -149,8 +200,8 @@ export function ImportProductsDialog({ existingProducts, onDone }: ImportProduct
 
       <div>
         <p className="mb-2 text-sm text-[var(--text-muted)]">
-          Upload a .csv or .xlsx file with columns for Name, SKU, Category, Buying Price, Selling Price, Stock, and
-          Minimum Stock. Not sure of the format?
+          Upload a .csv, .xlsx, or .pdf catalog export. For spreadsheets, use columns for Name, SKU, Category,
+          Buying Price, Selling Price, Stock, and Minimum Stock. Not sure of the spreadsheet format?
         </p>
         <button type="button" onClick={handleDownloadSample} className="text-sm font-medium text-brand-pink-600">
           Download an example template
@@ -160,7 +211,7 @@ export function ImportProductsDialog({ existingProducts, onDone }: ImportProduct
       <input
         ref={inputRef}
         type="file"
-        accept=".csv,.xlsx,.xls"
+        accept=".csv,.xlsx,.xls,.pdf"
         className="hidden"
         onChange={(e) => handleFile(e.target.files?.[0])}
       />

@@ -7,6 +7,7 @@ export interface RawImportRow {
   category?: string
   buyingPrice?: number
   sellingPrice?: number
+  wholesalePrice?: number
   stock?: number
   minimumStock?: number
   rowNumber: number
@@ -29,6 +30,8 @@ const HEADER_ALIASES: Record<string, keyof Omit<RawImportRow, 'rowNumber'>> = {
   sellingprice: 'sellingPrice',
   selling: 'sellingPrice',
   price: 'sellingPrice',
+  wholesaleprice: 'wholesalePrice',
+  wholesale: 'wholesalePrice',
   stock: 'stock',
   quantity: 'stock',
   qty: 'stock',
@@ -58,7 +61,7 @@ export async function parseImportFile(file: File): Promise<RawImportRow[]> {
     for (const [header, value] of Object.entries(raw)) {
       const key = HEADER_ALIASES[normalizeHeader(header)]
       if (!key) continue
-      if (key === 'buyingPrice' || key === 'sellingPrice' || key === 'stock' || key === 'minimumStock') {
+      if (key === 'buyingPrice' || key === 'sellingPrice' || key === 'wholesalePrice' || key === 'stock' || key === 'minimumStock') {
         row[key] = toNumber(value)
       } else {
         const str = String(value).trim()

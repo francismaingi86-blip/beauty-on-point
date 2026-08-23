@@ -9,6 +9,7 @@ export interface ImportRowToAdd {
   category?: string
   buyingPrice: number
   sellingPrice: number
+  wholesalePrice?: number
   stock: number
   minimumStock: number
 }
@@ -102,6 +103,7 @@ export function analyzeImport(rows: RawImportRow[], existingProducts: Product[])
       category: row.category,
       buyingPrice: row.buyingPrice ?? 0,
       sellingPrice: row.sellingPrice ?? row.buyingPrice ?? 0,
+      wholesalePrice: row.wholesalePrice,
       stock: row.stock ?? 0,
       minimumStock: row.minimumStock ?? 0,
     })

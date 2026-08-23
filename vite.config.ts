@@ -30,6 +30,11 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
+        // The bulk-import dialog bundles spreadsheet/PDF parsing libraries
+        // and is fairly large — excluding it from the upfront offline
+        // cache means only people who actually open Import ever download
+        // it, fetched normally over the network at that point instead.
+        globIgnores: ['**/ImportProductsDialog-*.js'],
         // Without this, opening a deep link (e.g. /sales) or refreshing on
         // any route other than "/" fails while offline — Workbox has no
         // cached response for that exact URL. This tells it to fall back
