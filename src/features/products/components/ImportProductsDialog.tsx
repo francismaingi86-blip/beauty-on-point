@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { Upload, ShieldCheck, Plus, SkipForward, AlertCircle, CheckCircle2, Pencil } from 'lucide-react'
+import { Upload, ShieldCheck, Plus, SkipForward, AlertCircle, CheckCircle2, Pencil, Copy, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { formatKes } from '@/lib/utils'
@@ -23,9 +23,13 @@ Amara 200ml,AMR-200,Body Care,350,500,10,3
 Versman 400ml,VER-400,Body Care,420,600,8,3
 `
 
-async function parseAnyFile(file: File): Promise<RawImportRow[]> {
+async function parseAnyFile(file: File): Promise<{ rows: RawImportRow[]; rawLines?: string[] }> {
   const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
-  return isPdf ? parsePdfCatalog(file) : parseImportFile(file)
+  if (isPdf) {
+    const result = await parsePdfCatalog(file)
+    return { rows: result.rows, rawLines: result.rawLines }
+  }
+  return { rows: await parseImportFile(file) }
 }
 
 export function ImportProductsDialog({ existingProducts, onDone }: ImportProductsDialogProps) {
@@ -35,6 +39,8 @@ export function ImportProductsDialog({ existingProducts, onDone }: ImportProduct
   const [skipped, setSkipped] = useState<ImportRowSkipped[]>([])
   const [addedCount, setAddedCount] = useState(0)
   const [parseError, setParseError] = useState<string | null>(null)
+  const [debugLines, setDebugLines] = useState<string[] | null>(null)
+  const [copied, setCopied] = useState(false)
   const [parsing, setParsing] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const bulkCreate = useBulkCreateProducts()
@@ -43,30 +49,44 @@ export function ImportProductsDialog({ existingProducts, onDone }: ImportProduct
     if (!file) return
     setFileName(file.name)
     setParseError(null)
+    setDebugLines(null)
     setParsing(true)
     try {
-      const rows = await parseAnyFile(file)
+      const { rows, rawLines } = await parseAnyFile(file)
       if (rows.length === 0) {
-        setParseError(
-          "Couldn't find any usable rows in that file — check it has clear product rows with a name and prices."
-        )
+        if (rawLines) {
+          if (rawLines.length === 0) {
+            setParseError(
+              "This PDF doesn't seem to have any readable text in it — it may be a scanned image rather than a real text-based PDF. If you can, try exporting or re-saving it as a proper PDF (not a photo/scan) and upload that instead."
+            )
+          } else {
+            setDebugLines(rawLines)
+            setParseError(
+              "Found text in the PDF, but couldn't match it to a product list layout I recognize. See the extracted text below — copy it and paste it back into the chat so it can be tuned to your file's exact format."
+            )
+          }
+        } else {
+          setParseError("Couldn't find any rows in that file — check it has a header row and at least one product.")
+        }
         return
       }
       const analysis = analyzeImport(rows, existingProducts)
-      if (analysis.toAdd.length === 0 && analysis.toSkip.length === 0) {
-        setParseError("Couldn't recognize any products in that file — it may not match an expected format.")
-        return
-      }
       setEditableRows(analysis.toAdd.map((row) => ({ ...row, included: true })))
       setSkipped(analysis.toSkip)
       setStep('preview')
     } catch {
-      setParseError(
-        "Could not read that file. Make sure it's a .csv, .xlsx, or .pdf catalog export."
-      )
+      setParseError("Could not read that file. Make sure it's a valid .csv, .xlsx, or .pdf file.")
     } finally {
       setParsing(false)
     }
+  }
+
+  function handleCopyDebugLines() {
+    if (!debugLines) return
+    navigator.clipboard.writeText(debugLines.join('\n')).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
   }
 
   function handleDownloadSample() {
@@ -230,6 +250,23 @@ export function ImportProductsDialog({ existingProducts, onDone }: ImportProduct
         <div className="flex items-start gap-2 rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-400">
           <AlertCircle size={15} className="mt-0.5 shrink-0" />
           <span>{parseError}</span>
+        </div>
+      )}
+
+      {debugLines && (
+        <div>
+          <div className="mb-1.5 flex items-center justify-between">
+            <span className="text-sm font-medium">Extracted text ({debugLines.length} lines)</span>
+            <Button variant="outline" size="sm" onClick={handleCopyDebugLines}>
+              {copied ? <Check size={13} /> : <Copy size={13} />} {copied ? 'Copied' : 'Copy'}
+            </Button>
+          </div>
+          <div className="card-surface max-h-48 overflow-y-auto p-3">
+            <pre className="whitespace-pre-wrap font-mono text-xs text-[var(--text-muted)]">
+              {debugLines.slice(0, 80).join('\n')}
+              {debugLines.length > 80 && `\n… +${debugLines.length - 80} more lines`}
+            </pre>
+          </div>
         </div>
       )}
     </div>

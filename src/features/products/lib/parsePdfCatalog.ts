@@ -55,7 +55,13 @@ async function extractLines(file: File): Promise<string[]> {
   return lines
 }
 
-export async function parsePdfCatalog(file: File): Promise<PdfCatalogRow[]> {
-  const lines = await extractLines(file)
-  return parseCatalogLines(lines)
+export interface PdfCatalogResult {
+  rows: PdfCatalogRow[]
+  rawLines: string[]
+}
+
+export async function parsePdfCatalog(file: File): Promise<PdfCatalogResult> {
+  const rawLines = await extractLines(file)
+  const rows = parseCatalogLines(rawLines)
+  return { rows, rawLines }
 }
