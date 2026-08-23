@@ -4,7 +4,7 @@ import { syncPendingSales, refreshSalesFromServer } from '@/features/sales/api/s
 import { syncPendingCustomers, refreshCustomersFromServer } from '@/features/customers/api/customers-api'
 import { syncPendingSuppliers, refreshSuppliersFromServer } from '@/features/suppliers/api/suppliers-api'
 import { syncPendingExpenses, refreshExpensesFromServer } from '@/features/expenses/api/expenses-api'
-import { syncPendingPurchases } from '@/features/purchases/api/purchases-api'
+import { syncPendingPurchases, refreshPurchasesFromServer } from '@/features/purchases/api/purchases-api'
 import { syncPendingPurchaseReturns, refreshPurchaseReturnsFromServer } from '@/features/purchases/api/purchase-returns-api'
 import { syncPendingCreditNotes, refreshCreditNotesFromServer } from '@/features/credit-notes/api/credit-notes-api'
 import { syncPendingStockTakes, refreshStockTakesFromServer } from '@/features/inventory/api/stock-takes-api'
@@ -41,6 +41,7 @@ export async function runFullSync(): Promise<void> {
     refreshCustomersFromServer(),
     refreshSuppliersFromServer(),
     refreshExpensesFromServer(),
+    refreshPurchasesFromServer(),
     refreshPurchaseReturnsFromServer(),
     refreshCreditNotesFromServer(),
     refreshStockTakesFromServer(),

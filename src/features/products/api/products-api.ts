@@ -147,11 +147,32 @@ async function pushProduct(product: Product): Promise<void> {
   }
 }
 
+/**
+ * Pushes a set of products in real network batches (one request per ~200
+ * rows) rather than one request per product. Firing a request per item
+ * is fine for a handful of records but overwhelms mobile connections —
+ * and leaves some stuck failing forever — once there are dozens or more,
+ * which is exactly what a big catalog import or a long stretch offline
+ * can produce. A chunk that fails just stays unsynced and retries on the
+ * next sync pass; nothing is lost.
+ */
+async function pushProductsBatch(products: Product[]): Promise<void> {
+  if (products.length === 0 || !navigator.onLine) return
+  const BATCH_SIZE = 200
+  for (let i = 0; i < products.length; i += BATCH_SIZE) {
+    const batch = products.slice(i, i + BATCH_SIZE)
+    const { error } = await supabase.from('products').upsert(batch.map(toSupabaseRow))
+    if (!error) {
+      await db.products.bulkUpdate(batch.map((p) => ({ key: p.id, changes: { synced: true } })))
+    }
+  }
+}
+
 /** Push every unsynced local product — call this on reconnect. */
 export async function syncPendingProducts(): Promise<void> {
   if (!navigator.onLine) return
   const pending = await db.products.filter((p) => !p.synced).toArray()
-  await Promise.all(pending.map(pushProduct))
+  await pushProductsBatch(pending)
 }
 
 /** Pull the latest products from Supabase into the local cache. */
@@ -186,6 +207,6 @@ export async function bulkCreateProducts(rows: ImportRowToAdd[]): Promise<Produc
   }))
 
   await db.products.bulkPut(created)
-  await Promise.all(created.map(pushProduct))
+  await pushProductsBatch(created)
   return created
 }

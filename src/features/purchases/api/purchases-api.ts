@@ -1,6 +1,7 @@
 import { db, type Purchase, type PurchaseItem } from '@/lib/db'
 import { supabase } from '@/lib/supabase'
 import { pushStockDeltasBatch } from '@/lib/stockSync'
+import { safeBulkPut } from '@/lib/safeBulkPut'
 
 type SupabasePurchaseRow = {
   id: string
@@ -27,6 +28,38 @@ function toSupabaseRow(p: Purchase): Omit<SupabasePurchaseRow, 'updated_at'> {
     received_at: p.receivedAt ? new Date(p.receivedAt).toISOString() : null,
     created_at: new Date(p.createdAt).toISOString(),
   }
+}
+
+function fromSupabaseRow(row: SupabasePurchaseRow, supplierName?: string): Purchase {
+  return {
+    id: row.id,
+    supplierId: row.supplier_id ?? undefined,
+    supplierName,
+    items: row.items,
+    total: row.total,
+    status: row.status,
+    notes: row.notes ?? undefined,
+    orderedAt: row.ordered_at ? new Date(row.ordered_at).getTime() : undefined,
+    receivedAt: row.received_at ? new Date(row.received_at).getTime() : undefined,
+    createdAt: new Date(row.created_at).getTime(),
+    updatedAt: new Date(row.updated_at).getTime(),
+    synced: true,
+  }
+}
+
+/** Pull the latest purchases from Supabase into the local cache. Without
+ * this, a purchase created on one device would never appear on another —
+ * only pushes existed before, nothing ever pulled fresh data back down. */
+export async function refreshPurchasesFromServer(): Promise<void> {
+  if (!navigator.onLine) return
+  const { data, error } = await supabase.from('purchases').select('*')
+  if (error || !data) return
+  const suppliers = await db.suppliers.toArray()
+  const supplierNameById = new Map(suppliers.map((s) => [s.id, s.name]))
+  const mapped = (data as SupabasePurchaseRow[]).map((row) =>
+    fromSupabaseRow(row, row.supplier_id ? supplierNameById.get(row.supplier_id) : undefined)
+  )
+  await safeBulkPut(db.purchases, mapped)
 }
 
 export async function listPurchases(): Promise<Purchase[]> {

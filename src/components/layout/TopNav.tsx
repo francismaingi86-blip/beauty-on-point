@@ -4,6 +4,7 @@ import { useThemeStore } from '@/stores/useThemeStore'
 import { useUIStore } from '@/stores/useUIStore'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useSyncEngine } from '@/lib/useSyncEngine'
+import { useRealtimeSync } from '@/lib/useRealtimeSync'
 import { cn } from '@/lib/utils'
 
 const STALE_THRESHOLD_MS = 2 * 60 * 60 * 1000 // 2 hours
@@ -24,6 +25,7 @@ export function TopNav() {
   const { user } = useAuthStore()
   const [isOnline, setIsOnline] = useState(navigator.onLine)
   const { pendingCount, syncing, lastSyncedAt, oldestPendingAt, syncNow } = useSyncEngine()
+  useRealtimeSync()
   const [statusOpen, setStatusOpen] = useState(false)
   const isStale = oldestPendingAt != null && Date.now() - oldestPendingAt > STALE_THRESHOLD_MS
 

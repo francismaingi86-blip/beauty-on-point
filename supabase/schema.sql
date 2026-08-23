@@ -515,3 +515,9 @@ $$;
 
 grant execute on function adjust_product_stock_batch(jsonb) to authenticated;
 
+
+-- Enable Supabase Realtime for the tables that support live cross-device
+-- sync in the app. Without this, changes only appear on other devices at
+-- the next periodic sync (roughly every minute) rather than within a
+-- second or two of happening.
+alter publication supabase_realtime add table products, sales, customers, suppliers, expenses, purchases, purchase_returns, credit_notes, stock_takes;
