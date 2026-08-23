@@ -3,6 +3,7 @@ import { safeBulkPut } from '@/lib/safeBulkPut'
 import { supabase } from '@/lib/supabase'
 import { toTitleCase } from '@/lib/utils'
 import type { ProductFormValues } from '../types/product-schema'
+import type { ImportRowToAdd } from '../lib/analyzeImport'
 
 type SupabaseProductRow = {
   id: string
@@ -160,4 +161,30 @@ export async function refreshProductsFromServer(): Promise<void> {
   if (error || !data) return
   const mapped = (data as SupabaseProductRow[]).map(fromSupabaseRow)
   await safeBulkPut(db.products, mapped)
+}
+
+/**
+ * Creates brand-new products from a bulk import. This ONLY inserts rows
+ * that analyzeImport already determined don't exist yet — it never
+ * updates or touches any existing product's data, stock, or price.
+ */
+export async function bulkCreateProducts(rows: ImportRowToAdd[]): Promise<Product[]> {
+  const now = Date.now()
+  const created: Product[] = rows.map((row) => ({
+    id: crypto.randomUUID(),
+    barcode: row.barcode || undefined,
+    sku: row.sku,
+    name: toTitleCase(row.name).toUpperCase(),
+    category: row.category ? toTitleCase(row.category) : undefined,
+    buyingPrice: row.buyingPrice,
+    sellingPrice: row.sellingPrice,
+    stock: row.stock,
+    minimumStock: row.minimumStock,
+    updatedAt: now,
+    synced: false,
+  }))
+
+  await db.products.bulkPut(created)
+  await Promise.all(created.map(pushProduct))
+  return created
 }

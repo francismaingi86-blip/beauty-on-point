@@ -1,6 +1,6 @@
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState, lazy, Suspense } from 'react'
 import { useReactToPrint } from 'react-to-print'
-import { Plus, Search, FileDown } from 'lucide-react'
+import { Plus, Search, FileDown, Upload, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
 import { ProductForm } from './components/ProductForm'
@@ -11,6 +11,13 @@ import { useSettings } from '@/features/settings/hooks/useSettings'
 import type { Product } from '@/lib/db'
 import type { ProductFormValues } from './types/product-schema'
 
+// The spreadsheet-parsing library this pulls in is fairly large — loading
+// it only when someone actually opens the import dialog keeps it out of
+// everyone else's initial page load.
+const ImportProductsDialog = lazy(() =>
+  import('./components/ImportProductsDialog').then((m) => ({ default: m.ImportProductsDialog }))
+)
+
 export function ProductsPage() {
   const { data: products = [], isLoading } = useProducts()
   const { data: settings } = useSettings()
@@ -19,6 +26,7 @@ export function ProductsPage() {
 
   const [search, setSearch] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
   const [editing, setEditing] = useState<Product | null>(null)
 
   const reportRef = useRef<HTMLDivElement>(null)
@@ -71,7 +79,10 @@ export function ProductsPage() {
             {products.length} product{products.length === 1 ? '' : 's'} in your catalog
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => setImportOpen(true)}>
+            <Upload size={16} /> Import products
+          </Button>
           <Button variant="outline" onClick={() => printReport()} disabled={products.length === 0}>
             <FileDown size={16} /> Download PDF
           </Button>
@@ -108,6 +119,18 @@ export function ProductsPage() {
           onCancel={() => setDialogOpen(false)}
           isSaving={saveProduct.isPending}
         />
+      </Dialog>
+
+      <Dialog open={importOpen} onClose={() => setImportOpen(false)} title="Import products">
+        <Suspense
+          fallback={
+            <div className="flex items-center justify-center py-12">
+              <Sparkles size={22} className="animate-pulse text-brand-pink-400" />
+            </div>
+          }
+        >
+          <ImportProductsDialog existingProducts={products} onDone={() => setImportOpen(false)} />
+        </Suspense>
       </Dialog>
 
       <div style={{ position: 'absolute', top: '-10000px', left: '-10000px' }} aria-hidden="true">
